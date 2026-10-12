@@ -28,14 +28,17 @@ export const CATEGORY_PENALTY_KM: Record<SafetyCategory, number> = {
   residential: 1000,
   restricted: 1500,
   sea: 1000,
+  // 標高が取得できなかった点 (429等) は山地と同じ扱い。
+  // 分からない点を最良候補として選ばないようにするため
+  unknown: 300,
 }
 
 /**
  * 着地点を採点する。スコアは「小さいほど良い」距離ベースの値 [km]。
  * - minDistance: 目標地点までの距離 + 海ペナルティ
  * - avoidSea: 海なら大ペナルティ、陸なら発射地点からの距離
- * - safeLanding: カテゴリペナルティ (海/住宅街/空港基地/山) + 発射地点からの距離。
- *   elevationM未取得(null)時は山判定スキップ
+ * - safeLanding: カテゴリペナルティ (海/住宅街/空港基地/山/標高不明) + 発射地点からの距離。
+ *   elevationM未取得(null)時は'unknown'(山地と同じペナルティ)
  */
 export function scoreLanding(
   landing: LatLon,

@@ -1,8 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { setLandData } from '../optimizer/landSea'
 import { scoreLanding, CATEGORY_PENALTY_KM } from '../optimizer/objectives'
 import { classify, setSafetyData } from './landingSafety'
-import { clearElevationCache, fetchElevations } from './elevation'
 
 // 北海道全域をカバーする矩形陸地 (テスト用: 139-146E, 41-46N)
 const hokkaidoLand = {
@@ -47,8 +46,6 @@ beforeEach(() => {
 afterEach(() => {
   setLandData(null)
   setSafetyData(null, null)
-  vi.unstubAllGlobals()
-  clearElevationCache()
 })
 
 describe('classify', () => {
@@ -81,8 +78,14 @@ describe('classify', () => {
     expect(classify(42.65, 143.2, 75)).toBe('safe')
   })
 
-  it('標高null時は山判定スキップ', () => {
-    expect(classify(43.3, 142.9, null)).toBe('safe')
+  it('標高null時は「不明」(429等で取得できなかった点を安全に数えない)', () => {
+    // 以前は山判定をスキップして'safe'を返していたが、429で取得できなかった点を
+    // 安全着地率に混ぜてしまうバグだったため'unknown'に変更
+    expect(classify(43.3, 142.9, null)).toBe('unknown')
+  })
+
+  it('標高null時でも海判定は変わらない', () => {
+    expect(classify(41.5, 148.0, null)).toBe('sea')
   })
 
   it('優先順: restrictedはresidentialより先', () => {
@@ -136,41 +139,4 @@ describe('scoreLanding safeLanding', () => {
     )
   })
 })
-
-describe('fetchElevations', () => {
-  it('batches 150 points into 2 requests and caches', async () => {
-    const calls: string[] = []
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (url: string) => {
-        calls.push(url)
-        const n = url.split('latitude=')[1].split('&')[0].split(',').length
-        return new Response(
-          JSON.stringify({ elevation: Array.from({ length: n }, () => 123) }),
-          { status: 200 },
-        )
-      }),
-    )
-    const points = Array.from({ length: 150 }, (_, i) => ({
-      lat: 42 + i * 0.01,
-      lon: 143 + i * 0.01,
-    }))
-    const result = await fetchElevations(points)
-    expect(calls).toHaveLength(2)
-    expect(result.every((e) => e === 123)).toBe(true)
-
-    // 2回目はキャッシュヒットでリクエストなし
-    const again = await fetchElevations(points.slice(0, 50))
-    expect(calls).toHaveLength(2)
-    expect(again.every((e) => e === 123)).toBe(true)
-  })
-
-  it('fetch失敗時はnull', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('err', { status: 500 })),
-    )
-    const result = await fetchElevations([{ lat: 42, lon: 143 }])
-    expect(result).toEqual([null])
-  })
-})
+// fetchElevationsのテストは safety/elevation.test.ts に移動 (429リトライ追加に伴い分離)

@@ -82,6 +82,11 @@ export function ScenarioInfo() {
                   {((mcSafety.safe / totalSamples) * 100).toFixed(0)}% (
                   {mcSafety.safe}/{totalSamples})
                 </b>
+                {mcSafety.unknown > 0 && (
+                  <div className="climatology-warning">
+                    標高を取得できなかった点 {mcSafety.unknown} 件（安全に数えていません）
+                  </div>
+                )}
               </dd>
               <dt>内訳</dt>
               <dd>

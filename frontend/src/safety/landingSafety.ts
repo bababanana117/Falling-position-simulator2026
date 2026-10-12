@@ -1,5 +1,5 @@
 // 着地点の安全カテゴリ判定 (北海道向け)
-// 優先順: 海 → 空港/自衛隊(restricted) → 住宅街(towns近接) → 山(標高閾値) → safe
+// 優先順: 海 → 空港/自衛隊(restricted) → 住宅街(towns近接) → 標高不明(unknown) → 山(標高閾値) → safe
 
 import { haversineM } from '../stats/landing'
 import { isOnLand } from '../optimizer/landSea'
@@ -10,6 +10,7 @@ export type SafetyCategory =
   | 'residential'
   | 'restricted'
   | 'mountain'
+  | 'unknown'
 
 export const CATEGORY_LABEL: Record<SafetyCategory, string> = {
   safe: '安全',
@@ -17,6 +18,7 @@ export const CATEGORY_LABEL: Record<SafetyCategory, string> = {
   residential: '住宅街',
   restricted: '空港/基地',
   mountain: '山地',
+  unknown: '標高不明',
 }
 
 export const CATEGORY_COLOR: Record<SafetyCategory, string> = {
@@ -25,6 +27,7 @@ export const CATEGORY_COLOR: Record<SafetyCategory, string> = {
   residential: '#ef6c00',
   restricted: '#c62828',
   mountain: '#6d4c41',
+  unknown: '#9e9e9e',
 }
 
 export interface CircleZone {
@@ -82,7 +85,9 @@ export interface ClassifyOptions {
 
 /**
  * 着地点を安全カテゴリに分類する。
- * elevationM が null (未取得) の場合は山判定をスキップする。
+ * elevationM が null (429等で未取得) の場合は山判定ができないため 'unknown' を返す。
+ * 以前はここで山判定をスキップして'safe'を返していたため、標高APIの
+ * レート制限(429)で取れなかった点が安全着地率に紛れ込むバグがあった。
  */
 export function classify(
   lat: number,
@@ -94,12 +99,20 @@ export function classify(
   if (!isOnLand(lat, lon)) return 'sea'
   if (restricted && inAnyZone(lat, lon, restricted)) return 'restricted'
   if (towns && inAnyZone(lat, lon, towns)) return 'residential'
-  if (elevationM != null && elevationM >= threshold) return 'mountain'
+  if (elevationM == null) return 'unknown'
+  if (elevationM >= threshold) return 'mountain'
   return 'safe'
 }
 
 export type SafetyBreakdown = Record<SafetyCategory, number>
 
 export function emptyBreakdown(): SafetyBreakdown {
-  return { safe: 0, sea: 0, residential: 0, restricted: 0, mountain: 0 }
+  return {
+    safe: 0,
+    sea: 0,
+    residential: 0,
+    restricted: 0,
+    mountain: 0,
+    unknown: 0,
+  }
 }
