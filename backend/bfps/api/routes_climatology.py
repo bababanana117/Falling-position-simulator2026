@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 
+import duckdb
 from fastapi import APIRouter, HTTPException
 
 from ..climatology.model import FlightSettings
@@ -34,6 +35,12 @@ def get_store() -> ClimatologyStore:
                 raise HTTPException(
                     status_code=503,
                     detail=f"統計データベースが見つかりません: {settings.climatology_db}",
+                ) from e
+            except duckdb.Error as e:
+                # 壊れている/ロックされている等で開けない場合も 500 ではなく 503 にする
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"統計データベースを開けません: {settings.climatology_db}",
                 ) from e
         return _store
 

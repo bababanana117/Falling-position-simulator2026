@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class FlightProfile(BaseModel):
@@ -116,11 +116,19 @@ class ClimatologyRequest(BaseModel):
     launch_longitude: float = Field(ge=-180, le=360)
     launch_altitude: float = 0.0
     launch_datetime: datetime
-    ascent_rate: float = Field(gt=0, le=15)
+    # 統計モードは層ごとの滞在時間で積分するため、極端に遅い値だと層分割が破綻する。
+    # 予報モード (FlightProfile) より下限を厳しくする。
+    ascent_rate: float = Field(ge=0.5, le=15)
     burst_altitude: float = Field(gt=1000, le=45000)
-    descent_rate: float = Field(gt=0, le=30)
+    descent_rate: float = Field(ge=1.0, le=30)
     n_samples: int = Field(default=500, ge=10, le=2000)
     seed: int | None = 42
+
+    @model_validator(mode="after")
+    def _check_altitudes(self) -> "ClimatologyRequest":
+        if self.launch_altitude >= self.burst_altitude:
+            raise ValueError("打ち上げ高度が破裂高度以上です")
+        return self
 
 
 class TimebinOut(BaseModel):

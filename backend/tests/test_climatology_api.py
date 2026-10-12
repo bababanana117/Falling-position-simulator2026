@@ -65,6 +65,34 @@ def test_predict_without_db(tmp_path, monkeypatch):
     assert "統計データベースが見つかりません" in r.json()["detail"]
 
 
+def test_predict_corrupt_db(tmp_path, monkeypatch):
+    p = tmp_path / "corrupt.duckdb"
+    p.write_text("これは DuckDB ファイルではない")
+    monkeypatch.setattr(routes_climatology, "_store", None)
+    monkeypatch.setattr(routes_climatology.settings, "climatology_db", str(p))
+    r = TestClient(app).post("/api/climatology/predict", json=REQ)
+    assert r.status_code == 503
+    assert "統計データベースを開けません" in r.json()["detail"]
+
+
+def test_predict_ascent_rate_too_slow(client):
+    r = client.post("/api/climatology/predict", json={**REQ, "ascent_rate": 0.4})
+    assert r.status_code == 422
+
+
+def test_predict_descent_rate_too_slow(client):
+    r = client.post("/api/climatology/predict", json={**REQ, "descent_rate": 0.9})
+    assert r.status_code == 422
+
+
+def test_predict_launch_altitude_above_burst(client):
+    r = client.post(
+        "/api/climatology/predict",
+        json={**REQ, "launch_altitude": 30000, "burst_altitude": 30000},
+    )
+    assert r.status_code == 422
+
+
 REAL_DB = Path(__file__).resolve().parents[2] / "v2" / "jra3q_japan_wind_2016-2025_v2.duckdb"
 
 
