@@ -36,7 +36,10 @@ jobs:
         working-directory: frontend
         run: npm run build
         env:
-          GHPAGES_BASE: /Falling-position-simulator/
+          # 独自ドメイン https://cusf2026.ddd3h.com で配信するのでルート配下。
+          # 統計モード（7 日より先）が呼ぶバックエンド。
+          GHPAGES_BASE: /
+          VITE_API_BASE: https://api.cusf2026.ddd3h.com
       - name: Build Sphinx docs (optional)
         continue-on-error: true
         run: |
