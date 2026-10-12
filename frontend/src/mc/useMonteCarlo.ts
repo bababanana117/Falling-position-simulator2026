@@ -55,6 +55,10 @@ async function finishStatsAndSafety(): Promise<void> {
 
 export function useMonteCarlo() {
   const workersRef = useRef<Worker[]>([])
+  const climAbortRef = useRef<AbortController | null>(null)
+  // runClimatology の実行世代。キャンセル後や新しい実行が始まった後に古い fetch が
+  // 遅れて返ってきても、ストアへの書き込みをしないようにする
+  const climGenRef = useRef(0)
 
   const cancel = useCallback(() => {
     for (const w of workersRef.current) {
@@ -62,6 +66,8 @@ export function useMonteCarlo() {
       w.terminate()
     }
     workersRef.current = []
+    climAbortRef.current?.abort()
+    climGenRef.current++
     useResultsStore.getState().setRunning(false)
   }, [])
 
@@ -148,11 +154,15 @@ export function useMonteCarlo() {
 
   const runClimatology = useCallback(async (nSamples: number, seed: number) => {
     const results = useResultsStore.getState()
+    const myGen = ++climGenRef.current
+    const controller = new AbortController()
+    climAbortRef.current = controller
     results.clearAll()
     results.setRunning(true)
     try {
       const req = buildClimatologyRequest(Math.min(2000, Math.max(10, nSamples)), seed)
-      const res = await requestClimatology(req)
+      const res = await requestClimatology(req, { signal: controller.signal })
+      if (climGenRef.current !== myGen) return // キャンセル済み/上書き済み
       const store = useResultsStore.getState()
       store.setMcCentral(toFlight(res, req.launch_datetime))
       const perturbed = {
@@ -168,11 +178,15 @@ export function useMonteCarlo() {
         })),
       )
       store.setClimatology(toInfo(res))
+      if (climGenRef.current !== myGen) return
       await finishStatsAndSafety()
+      if (climGenRef.current !== myGen) return
     } catch (e) {
+      if (climGenRef.current !== myGen) return
+      if (e instanceof DOMException && e.name === 'AbortError') return
       useResultsStore.getState().setError(e instanceof Error ? e.message : String(e))
     } finally {
-      useResultsStore.getState().setRunning(false)
+      if (climGenRef.current === myGen) useResultsStore.getState().setRunning(false)
     }
   }, [])
 

@@ -1,9 +1,10 @@
 import { useState } from 'react'
+import { backendEnabled } from '../../api/backend'
 import { buildBaseRequest } from '../../hooks/useRunPrediction'
 import { MC_MAX_SAMPLES, useMonteCarlo } from '../../mc/useMonteCarlo'
 import { useParamsStore } from '../../store/paramsStore'
 import { useResultsStore } from '../../store/resultsStore'
-import { classifyLaunchTime } from '../../time/forecastWindow'
+import { classifyLaunchTime, resolveLaunchMode } from '../../time/forecastWindow'
 import { jstInputToUtcIso } from '../../time/jst'
 
 export function MonteCarloPanel() {
@@ -19,14 +20,17 @@ export function MonteCarloPanel() {
   const running = useResultsStore((s) => s.running)
   const { run, runClimatology, cancel } = useMonteCarlo()
   const launchTimeJst = useParamsStore((s) => s.launchTimeJst)
+  const hasBackend = backendEnabled()
   const isClimatology =
+    hasBackend &&
     classifyLaunchTime(jstInputToUtcIso(launchTimeJst)).kind === 'climatology'
 
   const start = () => {
     const base = buildBaseRequest()
     if (base.profile !== 'standard_profile') return
-    const cls = classifyLaunchTime(base.launch_datetime)
+    const cls = resolveLaunchMode(classifyLaunchTime(base.launch_datetime), hasBackend)
     if (cls.kind === 'error') {
+      // clearAll() 前に出す (run/runClimatology の中で呼ばれる) ので直前の結果は残る
       useResultsStore.getState().setError(cls.message)
       return
     }

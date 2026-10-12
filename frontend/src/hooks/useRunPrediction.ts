@@ -1,11 +1,12 @@
 import { useCallback, useRef } from 'react'
+import { backendEnabled } from '../api/backend'
 import { requestClimatology, toFlight, toInfo } from '../api/climatology'
 import type { ClimatologyRequest } from '../api/climatology'
 import { requestPrediction } from '../api/tawhiri'
 import type { TawhiriRequest } from '../api/tawhiriTypes'
 import { TawhiriError } from '../api/tawhiriTypes'
 import { jitterMs, tawhiriSemaphore } from '../api/semaphore'
-import { classifyLaunchTime } from '../time/forecastWindow'
+import { classifyLaunchTime, resolveLaunchMode } from '../time/forecastWindow'
 import { jstInputToUtcIso } from '../time/jst'
 import { useParamsStore } from '../store/paramsStore'
 import { useResultsStore } from '../store/resultsStore'
@@ -73,8 +74,10 @@ export function useRunPrediction() {
   const runSingle = useCallback(async () => {
     const results = useResultsStore.getState()
     const req = buildBaseRequest()
-    const cls = classifyLaunchTime(req.launch_datetime)
+    const cls = resolveLaunchMode(classifyLaunchTime(req.launch_datetime), backendEnabled())
     if (cls.kind === 'error') {
+      // clearAll() より前に出す: バックエンド無しで統計モード域に入った場合も
+      // それまでの結果を残す
       results.setError(cls.message)
       return
     }
