@@ -4,63 +4,88 @@
 概要
 ----
 
-Falling-position-simulator は **ビルドステップを持たない静的Webアプリ** です。
-サーバーサイドのコードはこのリポジトリには存在せず、軌道計算の実体は
-外部の Tawhiri API (CUSFが開発したバルーン着地予測エンジンの
-SondeHubホスティングインスタンス) に委譲しています。
+Falling-position-simulator は、フロントエンド(``frontend/``)とバックエンド
+(``backend/``)に分かれたWebアプリです。フロントエンドはReact 19 +
+TypeScript + Viteで書かれ、Cloudflare Workersの静的アセット配信機能で
+配信されます。
+バックエンドはPython + FastAPIで書かれており、統計モード(:doc:`climatology`)
+のときだけフロントエンドから呼び出されます。通常の予測(単発予測・時系列
+予測・モンテカルロ)はバックエンドを経由せず、ブラウザから外部のTawhiri
+APIを直接呼び出します。
 
 .. mermaid::
 
    flowchart LR
-       User["ユーザー<br/>(ブラウザ)"] -->|パラメータ入力| UI["index.html + jQuery UI<br/>フローティングパネル"]
-       UI -->|"HTTP GET (単発 / 繰り返し)"| Tawhiri["Tawhiri API<br/>api.v2.sondehub.org/tawhiri"]
-       Tawhiri -->|GFS風データで軌道積分| GFS["GFS 数値気象モデル<br/>(NOAA, Tawhiri側が参照)"]
-       Tawhiri -->|"軌道点列 (緯度経度高度時刻)"| UI
-       UI -->|Leaflet描画| Map["地図表示<br/>飛行経路 / 着地マーカー"]
-       UI -->|"KML/CSV生成"| Export["ダウンロードリンク"]
+       User["利用者<br/>(ブラウザ)"]
+       Frontend["フロントエンド<br/>React + TypeScript (Vite)"]
+       Tawhiri["Tawhiri API<br/>api.v2.sondehub.org/tawhiri<br/>(SondeHubホスティング, GFS風データ)"]
+       Backend["バックエンド<br/>FastAPI (統計モードのみ)"]
+       DuckDB["統計風DuckDB<br/>JRA-3Q 2016-2025 (git管理外)"]
+       OpenMeteo["Open-Meteo<br/>Elevation API"]
 
-       Local["js/calc/calc.js<br/>ブラウザ内バルーン<br/>サイジング計算"] -.->|"値を反映"| UI
+       User -->|"発射地点・日時・上昇速度等を入力"| Frontend
+       Frontend -->|"予報窓内 現在-12h〜+7日 HTTP GET /tawhiri"| Tawhiri
+       Tawhiri -->|"軌道点列 緯度経度高度時刻"| Frontend
+       Frontend -->|"予報窓より先 バックエンドが設定されている場合 POST /api/climatology/predict"| Backend
+       Backend -->|"読み取り専用で開く"| DuckDB
+       Backend -->|"平均軌道・落下点の標本・統計情報"| Frontend
+       Frontend -->|"着地点ごとに標高を取得"| OpenMeteo
+       OpenMeteo -->|"標高 取得できない場合はnull"| Frontend
+       Frontend -->|"地図・グラフとして表示"| User
 
 ポイント:
 
-- 実際の風・大気による軌道積分計算は **すべてTawhiri側(サーバー)で実行**
-  される。本リポジトリはリクエストを組み立て、返ってきた軌道点列を
-  地図に描画するだけの **薄いクライアント**
-- 唯一ブラウザ内で完結する数値計算は、打ち上げ前のバルーンサイジング電卓
-  (:doc:`ascent_calculator`) のみ
-- モンテカルロ的な確率分散表示 (:doc:`monte_carlo`) は、Tawhiriへの
-  リクエストをパラメータを揺らしながら何度も投げる、という形で実現されて
-  いる(サーバー側でモンテカルロを回しているわけではない)
+- 軌道の積分計算そのものは本リポジトリでは行わない。予報窓内は
+  **すべてTawhiri側(外部サーバー)で計算する**\ 。本リポジトリはリクエストを
+  組み立てて結果を地図とグラフに描画する
+- バックエンドは統計モードのときだけ使われる。予報窓内の予測・モンテカルロ・
+  時系列予測・最適化・感度分析はいずれもバックエンドを経由しない
+- 着地点の安全判定(陸海・住宅街・制限区域・標高)に使う陸地データ
+  (``frontend/public/geo/land.json``、Natural Earth 50m)や施設データは
+  静的ファイルとしてフロントエンドに同梱されており、外部APIへの問い合わせは
+  発生しない。標高だけはOpen-Meteoから取得する
 
 ディレクトリ構成
 ----------------
 
 .. code-block:: text
 
-   Falling-position-simulator/
-   ├── index.html                  # 単一ページ。全UIマークアップ
-   ├── sites.json                  # プリセット発射地点(緯度経度高度)
-   ├── test.py                     # ローカル開発用HTTPサーバー(CORS付与のみ)
-   ├── .github/workflows/pages.yml # GitHub Pages自動デプロイ
-   ├── css/                        # Bootstrap(未使用) / jQuery UI / Leaflet / 独自CSS
-   ├── images/                     # マーカーアイコン等
-   └── js/
-       ├── jquery-3.3.1.min.js, jquery-ui.min.js, jquery.form.js
-       ├── jquery.jookie.js        # クッキー操作
-       ├── jquery.tipsy.js         # ツールチップ
-       ├── leaflet.js              # 地図ライブラリ (Google Mapsから移行済み)
-       ├── moment.js                # 日時操作
-       ├── colour-map.js            # ヒートマップ用turboカラーマップ
-       ├── calc/
-       │   └── calc.js               # バルーンサイジング電卓(ブラウザ内完結)
-       └── pred/
-           ├── pred-config.js        # 定数・グローバル設定
-           ├── pred-cookie.js        # 保存済み発射地点のクッキー管理
-           ├── pred-event.js         # jQuery UIイベント配線
-           ├── pred-map.js           # Leaflet地図初期化・クリック処理
-           ├── pred-new.js           # 本体: Tawhiriクライアント(v3) ★最重要ファイル
-           ├── pred-ui.js            # 汎用UI補助(ウィンドウ・デバッグ・エラー表示)
-           └── pred.js               # 旧v2実装(Google Maps・UUIDポーリング) ほぼ未使用
+   Falling-position-simulator2026/
+   ├── frontend/                    # React + TypeScript + Vite フロントエンド
+   │   ├── wrangler.jsonc            # Cloudflare Workers配信設定 (独自ドメイン等)
+   │   ├── public/
+   │   │   ├── geo/                   # land.json / towns.json / restricted.json
+   │   │   └── sites.json             # 地域別の発射地点プリセット
+   │   └── src/
+   │       ├── api/                   # tawhiri.ts, backend.ts, climatology.ts
+   │       ├── time/                  # jst.ts, forecastWindow.ts
+   │       ├── mc/                    # モンテカルロ (Web Worker, 摂動生成)
+   │       ├── stats/                 # 着地点統計・信頼楕円
+   │       ├── safety/                # 着地安全判定・標高取得
+   │       ├── optimizer/             # 発射条件グリッドサーチ
+   │       ├── physics/               # バルーンサイジング計算
+   │       ├── store/                 # Zustandストア
+   │       ├── hooks/                 # useRunPrediction, useSensitivity
+   │       └── components/            # 地図・グラフ・入力パネル
+   ├── backend/                     # FastAPI バックエンド (統計モードのみ使用)
+   │   ├── bfps/
+   │   │   ├── main.py                # FastAPIアプリ本体、CORS設定
+   │   │   ├── config.py              # 環境変数 (BFPS_ プレフィクス)
+   │   │   ├── api/                   # ルーター (health/simulate/optimize/climatology)
+   │   │   ├── climatology/           # 統計モードの計算本体
+   │   │   ├── core/                  # 大気・軌道・モンテカルロ・最適化の自前実装
+   │   │   └── models/                # リクエスト/レスポンスのPydanticモデル
+   │   └── Dockerfile
+   ├── docs/                        # このSphinxドキュメント
+   └── .github/workflows/deploy.yml # Cloudflare Workers自動デプロイ
+
+.. note::
+
+   ``backend/bfps/core`` や ``bfps/api/routes_simulate.py`` /
+   ``routes_optimize.py`` には、自前の軌道積分・モンテカルロ・最適化の実装が
+   あるが、現在のフロントエンドはこれらを呼び出していない。フロントエンドが
+   バックエンドに投げるのは統計モードの ``/api/climatology/predict`` のみ
+   である。
 
 技術スタック
 ------------
@@ -70,26 +95,44 @@ SondeHubホスティングインスタンス) に委譲しています。
 
    * - 領域
      - 使用技術
-   * - 言語
-     - HTML5 / Vanilla JavaScript(ES5〜ES6混在) / CSS。TypeScriptやビルドツールは無し
-   * - DOM/UI
-     - jQuery 3.3.1, jQuery UI(ドラッグ可能パネル), jquery.tipsy, jquery.jookie
-   * - 地図
-     - Leaflet.js(旧Google Mapsから移行、Google Maps用の未使用コードが一部残存)
+   * - フロントエンド言語/ビルド
+     - TypeScript、Vite、React 19
+   * - 状態管理
+     - Zustand
+   * - 2D地図
+     - Leaflet (react-leaflet)、ヒートマップ表示に leaflet.heat
+   * - 3D地図
+     - three.js (``@navaramap/three`` 経由)。2D/3Dは切替可能
+   * - グラフ
+     - Plotly.js (react-plotly.js)
+   * - モンテカルロ実行
+     - Web Worker (複数) でTawhiriへの並列リクエストを分散
    * - 日時
-     - moment.js
-   * - 軌道計算
-     - 外部Tawhiri API(自前実装なし)
-   * - ホスティング
-     - GitHub Pages(GitHub Actionsでリポジトリをそのまま配信、ビルド工程なし)
+     - date-fns / date-fns-tz。入力・表示はJST、内部はUTC
+   * - 着地予測 (予報窓内)
+     - 外部Tawhiri API (ブラウザから直接呼び出し、自前実装なし)
+   * - 着地予測 (統計モード)
+     - バックエンドの ``POST /api/climatology/predict``
+   * - 標高取得
+     - Open-Meteo Elevation API
+   * - バックエンド
+     - Python 3.12、FastAPI、Pydantic、NumPy/SciPy、DuckDB
+   * - ホスティング (フロントエンド)
+     - Cloudflare Workers (静的アセット配信、GitHub Actionsでビルドして
+       ``wrangler deploy``、独自ドメイン)
+   * - ホスティング (バックエンド)
+     - リポジトリ外の運用者提供サーバー (Docker、:doc:`deployment` 参照)
 
 外部依存
 --------
 
 - **Tawhiri API**: ``https://api.v2.sondehub.org/tawhiri``
   (SondeHubがホストするCUSF Tawhiriのインスタンス。GFS風データを用いて
-  バルーンの上昇・降下軌道を数値積分する)。APIキー不要、``$.get`` で直接
-  ブラウザから叩いている
-- 元々のCUSF公式エンドポイント ``https://predict.cusf.co.uk/api/v1/`` は
-  コード内にコメントアウトで残存
-- データベースやユーザー認証、独自バックエンドは一切無し
+  気球の上昇・降下軌道を数値積分する)。APIキー不要で、ブラウザから直接
+  ``fetch`` している (``frontend/src/api/tawhiri.ts``)
+- **Open-Meteo Elevation API**: 着地点の標高を取得し、安全判定
+  (:doc:`monte_carlo`) に使う。1分あたりのリクエスト数に上限があり、
+  429応答時は1回だけ待って再試行する (``frontend/src/safety/elevation.ts``)
+- **JRA-3Q統計風データ**: 統計モードのみで使用。気象庁のJRA-3Q再解析データ
+  から作成したDuckDBファイルで、リポジトリには含まれない
+  (:doc:`climatology` 参照)

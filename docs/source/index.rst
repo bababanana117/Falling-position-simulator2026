@@ -1,32 +1,34 @@
 Falling-position-simulator ドキュメント
 =========================================
 
-このドキュメントは、Falling-position-simulator (Balloon Falling
-Position Simulator) の現行実装の仕組みを整理し、次期リニューアルに向けた
-新技術スタックの提案をまとめたものです。
+Falling-position-simulator (Balloon Falling Position Simulator) は、
+高高度気球の打ち上げ条件から着地位置を予測するWebアプリです。
+フロントエンドはReact + TypeScriptで書かれたブラウザアプリで、着地予測は
+CUSF/SondeHubのTawhiri APIを直接呼び出して行います。さらに、Tawhiriの
+予報期間(現在から7日先まで)を超える日時を指定した場合は、過去の統計風
+データから落下分布を見積もる「統計モード」に切り替わります。統計モードは
+FastAPI製のバックエンドが必要です。
 
-.. note::
-
-   このドキュメントの目的は2つです。
-
-   1. **現状把握** — 今このリポジトリが何をどう計算・表示しているかを、
-      コードを読まなくても理解できる形でまとめる
-   2. **新技術提案** — 現状の限界(モンテカルロ規模・可視化の幅・最適化機能の
-      不在)を踏まえ、リニューアル時に選べる技術スタック案を複数提示する
+このドキュメントは、現在のリポジトリの構成と各機能の仕組みを説明します。
+以前このリポジトリにあったjQuery/Leaflet版の静的サイトと、それに対する
+リニューアル提案書は、コミット ``94887cb`` でReact+TypeScriptフロントエンドと
+FastAPIバックエンドへの全面的な書き換えに置き換わりました。その提案書は
+「リニューアル前の検討資料」として本ドキュメントの末尾に残しています。
 
 .. toctree::
    :maxdepth: 2
-   :caption: 現状の仕組み
+   :caption: 現在の仕組み
 
    architecture
    ascent_calculator
    trajectory_prediction
    monte_carlo
+   climatology
    deployment
    known_issues
 
 .. toctree::
    :maxdepth: 2
-   :caption: 新技術提案
+   :caption: リニューアル前の検討資料
 
    proposal
