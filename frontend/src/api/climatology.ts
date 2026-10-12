@@ -59,7 +59,21 @@ export async function requestClimatology(
     let detail = `統計モードの計算に失敗しました (HTTP ${res.status})`
     try {
       const body = (await res.json()) as { detail?: unknown }
-      if (typeof body.detail === 'string') detail = body.detail
+      if (typeof body.detail === 'string') {
+        detail = body.detail
+      } else if (Array.isArray(body.detail)) {
+        // FastAPI の検証エラーリスト: loc, msg, type を持つオブジェクトの配列
+        const msgs = body.detail
+          .map((item: { loc?: unknown[]; msg?: unknown }) => {
+            const fieldName = Array.isArray(item.loc) && item.loc.length > 0
+              ? item.loc[item.loc.length - 1]
+              : null
+            const msg = typeof item.msg === 'string' ? item.msg : String(item.msg)
+            return fieldName ? `${fieldName}: ${msg}` : msg
+          })
+          .join(' / ')
+        if (msgs) detail = msgs
+      }
     } catch {
       // 本文が JSON でなければ既定の文言
     }

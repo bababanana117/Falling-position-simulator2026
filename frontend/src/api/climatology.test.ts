@@ -79,4 +79,22 @@ describe('requestClimatology', () => {
     await expect(requestClimatology(REQ, { baseUrl: 'http://x' })).rejects.toThrow('範囲外')
     vi.unstubAllGlobals()
   })
+  it('検証エラーがリストなら msg を loc フィールド名付きで結合する', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          detail: [
+            { loc: ['body', 'ascent_rate'], msg: 'Input should be less than or equal to 15', type: 'less_than_equal' },
+            { loc: ['body', 'burst_altitude'], msg: 'Input should be a valid integer', type: 'int_type' },
+          ],
+        }),
+        { status: 422 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(requestClimatology(REQ, { baseUrl: 'http://x' })).rejects.toThrow(
+      'ascent_rate: Input should be less than or equal to 15 / burst_altitude: Input should be a valid integer',
+    )
+    vi.unstubAllGlobals()
+  })
 })
