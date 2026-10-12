@@ -71,6 +71,7 @@ REAL_DB = Path(__file__).resolve().parents[2] / "v2" / "jra3q_japan_wind_2016-20
 @pytest.mark.skipif(not REAL_DB.exists(), reason="本物の DuckDB が無い")
 def test_real_db_standard_flight_matches_fact_drift():
     import duckdb
+    import numpy as np
 
     from bfps.climatology.model import (
         STANDARD_FLIGHT,
@@ -90,9 +91,9 @@ def test_real_db_standard_flight_matches_fact_drift():
     lv = store.levels(cid, 0)
     T = layer_seconds(lv.alt_m, STANDARD_FLIGHT)
     e, n = mean_drift(lv, T)
-    # fact_drift は解析時刻ごとの層の高度で作られているが、ここでは平均の高度を使うので 0.1 % 程度ずれる
-    assert e == pytest.approx(e_obs, rel=5e-3)
-    assert n == pytest.approx(n_obs, rel=1e-2, abs=200)
+    # fact_drift は解析時刻ごとの層の高度で作られているが、ここでは平均の高度を使うので少しずれる。
+    # 南北成分は小さいので、成分ごとではなく落下点のずれの大きさを流され方の 0.5 % 以内で比べる
+    assert np.hypot(e - e_obs, n - n_obs) < 5e-3 * np.hypot(e_obs, n_obs)
     rho = solve_rho(lv, T, ev, nv)
     cov = drift_covariance(lv, T, rho)
     assert cov[0, 0] + cov[1, 1] == pytest.approx(ev + nv, rel=0.05)
