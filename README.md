@@ -96,6 +96,8 @@ VITE_API_BASE=http://localhost:8000 npm run dev
 発射時刻が Tawhiri の予報窓（現在 −12 時間〜+7 日）より先のとき、単発実行とモンテカルロは
 バックエンドの `POST /api/climatology/predict` を使い、JRA-3Q 2016–2025 年の統計風
 （日本全国、半月ごと）から落下点の分布と平均の軌道を出す。予報ではない。
+降下は地表の標高ではなく海面（0 m）まで計算し、結果は発射日が属する半月ビン（年は使わない）の
+ものになる。
 
 - 必要なもの: バックエンド（`npm run dev` で一緒に起動）と統計風 DuckDB
   `v2/jra3q_japan_wind_2016-2025_v2.duckdb`（git 管理外。作り方は `research/wind-climatology` ブランチの `v2/README.md`）。
