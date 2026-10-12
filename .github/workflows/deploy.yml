@@ -51,4 +51,6 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: frontend
+          # 既定（3.90）は静的ファイルだけの Worker（wrangler.jsonc の assets のみ）を扱えないので 4 を使う
+          wranglerVersion: "4.149.0"
           command: deploy
