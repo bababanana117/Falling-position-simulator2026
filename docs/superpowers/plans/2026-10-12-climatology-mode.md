@@ -1,16 +1,16 @@
-# 統計モード（気候値による落下予測）Implementation Plan
+# 統計モード（気候値による落下予測）実装計画
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **実装する人（エージェント）へ:** この計画はタスクごとに進める。superpowers:subagent-driven-development（推奨）か superpowers:executing-plans を使う。各手順はチェックボックス（`- [ ]`）で進み具合を記録する。
 
-**Goal:** 打ち上げ日時が Tawhiri の予報窓（+7 日）より先のとき、日本全国の統計風 DuckDB から落下点の分布と平均の軌道を出す。
+**目的:** 打ち上げ日時が Tawhiri の予報窓（+7 日）より先のとき、日本全国の統計風 DuckDB から落下点の分布と平均の軌道を出す。
 
-**Architecture:** FastAPI バックエンドに `bfps/climatology/`（DuckDB 読み出し・純粋な計算・平均軌道）と `POST /api/climatology/predict` を足す。フロントエンドは発射時刻を「予報 / 統計 / エラー」に分け、統計のときはこの API を呼び、結果を既存の `Flight`・モンテカルロの落下点の型に直して既存の表示（楕円・ヒートマップ・安全判定）にそのまま流す。
+**構成:** FastAPI バックエンドに `bfps/climatology/`（DuckDB 読み出し・純粋な計算・平均軌道）と `POST /api/climatology/predict` を足す。フロントエンドは発射時刻を「予報 / 統計 / エラー」に分け、統計のときはこの API を呼び、結果を既存の `Flight`・モンテカルロの落下点の型に直して既存の表示（楕円・ヒートマップ・安全判定）にそのまま流す。
 
-**Tech Stack:** Python 3.12, FastAPI, numpy, duckdb (Python), pytest / React 19, TypeScript, Zustand, vitest.
+**使う技術:** Python 3.12, FastAPI, numpy, duckdb (Python), pytest / React 19, TypeScript, Zustand, vitest.
 
-**Spec:** `docs/superpowers/specs/2026-10-12-climatology-mode-design.md`
+**設計書:** `docs/superpowers/specs/2026-10-12-climatology-mode-design.md`
 
-## Global Constraints
+## 全体の決まりごと
 
 - DuckDB は `v2/jra3q_japan_wind_2016-2025_v2.duckdb`（約 1.9 GB、git 管理外）。パスは環境変数 `BFPS_CLIMATOLOGY_DB` で変えられる。既定は `../v2/jra3q_japan_wind_2016-2025_v2.duckdb`（`backend/` から見た相対パス）。
 - DuckDB は読み取り専用で開く。
@@ -27,7 +27,7 @@
 
 ---
 
-## File Structure
+## ファイルの構成
 
 ```
 backend/
@@ -60,14 +60,14 @@ README.md                                modify: 統計モードの説明
 
 ---
 
-### Task 0: バックエンドの開発環境
+### タスク 0: バックエンドの開発環境
 
-**Files:**
-- Modify: `backend/pyproject.toml`
+**ファイル:**
+- 変更: `backend/pyproject.toml`
 
 `uv` はこの環境に無い。`backend/.venv`（git 管理外、`backend/.gitignore` に `.venv/` あり）を作って使う。
 
-- [ ] **Step 1: duckdb を依存に足す**
+- [ ] **手順 1: duckdb を依存に足す**
 
 `backend/pyproject.toml` の `dependencies` に 1 行足す:
 
@@ -77,7 +77,7 @@ README.md                                modify: 統計モードの説明
 ]
 ```
 
-- [ ] **Step 2: 仮想環境を作って入れる**
+- [ ] **手順 2: 仮想環境を作って入れる**
 
 ```bash
 cd backend
@@ -86,14 +86,14 @@ python3.12 -m venv .venv || python3 -m venv .venv
 .venv/bin/python -c "import duckdb, fastapi; print(duckdb.__version__)"
 ```
 
-Expected: duckdb のバージョンが表示される。
+期待する結果: duckdb のバージョンが表示される。
 
-- [ ] **Step 3: 既存のテストが通ることを確かめる**
+- [ ] **手順 3: 既存のテストが通ることを確かめる**
 
-Run: `cd backend && .venv/bin/pytest -q`
-Expected: すべて PASS（network マーカーは除外）。
+実行: `cd backend && .venv/bin/pytest -q`
+期待する結果: すべて成功（network マーカーは除外）。
 
-- [ ] **Step 4: Commit**
+- [ ] **手順 4: コミット**
 
 ```bash
 git add backend/pyproject.toml
@@ -102,16 +102,16 @@ git commit -m "build(backend): add duckdb dependency for climatology mode"
 
 ---
 
-### Task 1: 純粋な計算（model.py）
+### タスク 1: 純粋な計算（model.py）
 
-**Files:**
-- Create: `backend/bfps/climatology/__init__.py`（空）
-- Create: `backend/bfps/climatology/model.py`
-- Test: `backend/tests/test_climatology_model.py`
+**ファイル:**
+- 新規: `backend/bfps/climatology/__init__.py`（空）
+- 新規: `backend/bfps/climatology/model.py`
+- テスト: `backend/tests/test_climatology_model.py`
 
-**Interfaces:**
+**受け渡し:**
 - Produces:
-  - `FlightSettings(ascent_rate: float, burst_altitude: float, descent_rate: float, launch_altitude: float = 0.0)` (frozen dataclass)
+  - `FlightSettings(ascent_rate: float, burst_altitude: float, descent_rate: float, launch_altitude: float = 0.0)` (変更不可の dataclass)
   - `STANDARD_FLIGHT: FlightSettings`（5.0, 30000.0, 6.0, 0.0）
   - `LevelStats(alt_m, u_mean, v_mean, u_var, v_var, uv_cov)`（すべて shape (L,) の np.ndarray、高度の低い順）
   - `layer_seconds(alt_m: np.ndarray, f: FlightSettings) -> np.ndarray`（shape (L,)）
@@ -121,7 +121,7 @@ git commit -m "build(backend): add duckdb dependency for climatology mode"
   - `sample_offsets(mean: tuple[float, float], cov: np.ndarray, n: int, seed: int | None) -> np.ndarray`（shape (n, 2)、東・北 [m]）
   - `offset_to_latlon(lat0: float, lon0: float, east_m: np.ndarray, north_m: np.ndarray) -> tuple[np.ndarray, np.ndarray]`
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [ ] **手順 1: 失敗するテストを書く**
 
 `backend/tests/test_climatology_model.py`:
 
@@ -218,12 +218,12 @@ def test_offset_to_latlon_one_degree_north():
     assert lon[0] == pytest.approx(130.0, abs=1e-9)
 ```
 
-- [ ] **Step 2: 失敗を確かめる**
+- [ ] **手順 2: 失敗を確かめる**
 
-Run: `cd backend && .venv/bin/pytest tests/test_climatology_model.py -q`
-Expected: FAIL（`ModuleNotFoundError: No module named 'bfps.climatology'`）
+実行: `cd backend && .venv/bin/pytest tests/test_climatology_model.py -q`
+期待する結果: 失敗（`ModuleNotFoundError: No module named 'bfps.climatology'`）
 
-- [ ] **Step 3: 実装する**
+- [ ] **手順 3: 実装する**
 
 `backend/bfps/climatology/__init__.py`: 空ファイル。
 
@@ -345,12 +345,12 @@ def offset_to_latlon(lat0: float, lon0: float, east_m: np.ndarray,
     return lat, lon
 ```
 
-- [ ] **Step 4: テストが通ることを確かめる**
+- [ ] **手順 4: テストが通ることを確かめる**
 
-Run: `cd backend && .venv/bin/pytest tests/test_climatology_model.py -q`
-Expected: 8 passed
+実行: `cd backend && .venv/bin/pytest tests/test_climatology_model.py -q`
+期待する結果: 8 件成功
 
-- [ ] **Step 5: Commit**
+- [ ] **手順 5: コミット**
 
 ```bash
 git add backend/bfps/climatology/__init__.py backend/bfps/climatology/model.py backend/tests/test_climatology_model.py
@@ -359,26 +359,26 @@ git commit -m "feat(backend): climatology drift model (mean, covariance, layer c
 
 ---
 
-### Task 2: DuckDB の読み出し（store.py）と合成 DB
+### タスク 2: DuckDB の読み出し（store.py）と合成 DB
 
-**Files:**
-- Create: `backend/bfps/climatology/store.py`
-- Create: `backend/tests/climatology_fixture.py`
-- Test: `backend/tests/test_climatology_store.py`
+**ファイル:**
+- 新規: `backend/bfps/climatology/store.py`
+- 新規: `backend/tests/climatology_fixture.py`
+- テスト: `backend/tests/test_climatology_store.py`
 
-**Interfaces:**
-- Consumes: `LevelStats`（Task 1）
+**受け渡し:**
+- 使うもの: `LevelStats`（タスク 1）
 - Produces:
   - `class ClimatologyStore`: `__init__(self, path: str | Path)`（無ければ `FileNotFoundError`）
     - `nearest_cell(lat: float, lon: float) -> tuple[int, float, float, float]`（cell_id, lat, lon, distance_km）
-    - `levels(cell_id: int, timebin_id: int) -> LevelStats`（キャッシュあり）
+    - `levels(cell_id: int, timebin_id: int) -> LevelStats`（結果をキャッシュする）
     - `drift_var(cell_id: int, timebin_id: int) -> tuple[float, float]`（east_var_m2, north_var_m2）
   - `timebin_for(dt_utc: datetime) -> tuple[int, int, int, str]`（timebin_id, month, bin, label 例 "1月前半"）
   - `tests/climatology_fixture.py`: `make_db(path, *, u=10.0, v=0.0, su=3.0, sv=2.0, c=0.0, rho=0.5) -> None`
     （格子 2×2 = 北緯 33.0/33.5 × 東経 130.0/130.5、全 24 時期、高度は model テストと同じ 8 面、
     fact_drift の分散は標準の飛行・指定の ρ で `drift_covariance` から作る）
 
-- [ ] **Step 1: 合成 DB を作る関数を書く**
+- [ ] **手順 1: 合成 DB を作る関数を書く**
 
 `backend/tests/climatology_fixture.py`:
 
@@ -430,7 +430,7 @@ def make_db(path: str | Path, *, u: float = 10.0, v: float = 0.0, su: float = 3.
     con.close()
 ```
 
-- [ ] **Step 2: 失敗するテストを書く**
+- [ ] **手順 2: 失敗するテストを書く**
 
 `backend/tests/test_climatology_store.py`:
 
@@ -499,12 +499,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 ```
 
-- [ ] **Step 3: 失敗を確かめる**
+- [ ] **手順 3: 失敗を確かめる**
 
-Run: `cd backend && .venv/bin/pytest tests/test_climatology_store.py -q`
-Expected: FAIL（`No module named 'bfps.climatology.store'`）
+実行: `cd backend && .venv/bin/pytest tests/test_climatology_store.py -q`
+期待する結果: 失敗（`No module named 'bfps.climatology.store'`）
 
-- [ ] **Step 4: 実装する**
+- [ ] **手順 4: 実装する**
 
 `backend/bfps/climatology/store.py`:
 
@@ -585,12 +585,12 @@ class ClimatologyStore:
         return float(r["east_var_m2"][0]), float(r["north_var_m2"][0])
 ```
 
-- [ ] **Step 5: テストが通ることを確かめる**
+- [ ] **手順 5: テストが通ることを確かめる**
 
-Run: `cd backend && .venv/bin/pytest tests/test_climatology_store.py -q`
-Expected: 10 passed
+実行: `cd backend && .venv/bin/pytest tests/test_climatology_store.py -q`
+期待する結果: 10 件成功
 
-- [ ] **Step 6: Commit**
+- [ ] **手順 6: コミット**
 
 ```bash
 git add backend/bfps/climatology/store.py backend/tests/climatology_fixture.py backend/tests/test_climatology_store.py backend/tests/conftest.py
@@ -599,18 +599,18 @@ git commit -m "feat(backend): read-only climatology DuckDB store and half-month 
 
 ---
 
-### Task 3: 平均の軌道（trajectory.py）
+### タスク 3: 平均の軌道（trajectory.py）
 
-**Files:**
-- Create: `backend/bfps/climatology/trajectory.py`
-- Test: `backend/tests/test_climatology_trajectory.py`
+**ファイル:**
+- 新規: `backend/bfps/climatology/trajectory.py`
+- テスト: `backend/tests/test_climatology_trajectory.py`
 
-**Interfaces:**
-- Consumes: `ClimatologyStore.nearest_cell`, `ClimatologyStore.levels`（Task 2）、`FlightSettings`, `descent_speed`, `M_PER_DEG`（Task 1）
-- Produces: `mean_trajectory(store: ClimatologyStore, timebin_id: int, lat0: float, lon0: float, f: FlightSettings, dt: float = 30.0) -> tuple[list[tuple[float, float, float, float]], int]`
+**受け渡し:**
+- 使うもの: `ClimatologyStore.nearest_cell`, `ClimatologyStore.levels`（タスク 2）、`FlightSettings`, `descent_speed`, `M_PER_DEG`（タスク 1）
+- 作るもの: `mean_trajectory(store: ClimatologyStore, timebin_id: int, lat0: float, lon0: float, f: FlightSettings, dt: float = 30.0) -> tuple[list[tuple[float, float, float, float]], int]`
   （点のリスト (lat, lon, alt_m, time_s) と、破裂の点の添字）
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [ ] **手順 1: 失敗するテストを書く**
 
 `backend/tests/test_climatology_trajectory.py`:
 
@@ -643,12 +643,12 @@ def test_constant_wind_matches_layer_sum(tmp_path):
     assert t == pytest.approx(T.sum(), rel=0.1)
 ```
 
-- [ ] **Step 2: 失敗を確かめる**
+- [ ] **手順 2: 失敗を確かめる**
 
-Run: `cd backend && .venv/bin/pytest tests/test_climatology_trajectory.py -q`
-Expected: FAIL（`No module named 'bfps.climatology.trajectory'`）
+実行: `cd backend && .venv/bin/pytest tests/test_climatology_trajectory.py -q`
+期待する結果: 失敗（`No module named 'bfps.climatology.trajectory'`）
 
-- [ ] **Step 3: 実装する**
+- [ ] **手順 3: 実装する**
 
 `backend/bfps/climatology/trajectory.py`:
 
@@ -704,12 +704,12 @@ def mean_trajectory(store: ClimatologyStore, timebin_id: int, lat0: float, lon0:
     return pts, burst_index
 ```
 
-- [ ] **Step 4: テストが通ることを確かめる**
+- [ ] **手順 4: テストが通ることを確かめる**
 
-Run: `cd backend && .venv/bin/pytest tests/test_climatology_trajectory.py -q`
-Expected: 1 passed
+実行: `cd backend && .venv/bin/pytest tests/test_climatology_trajectory.py -q`
+期待する結果: 1 件成功
 
-- [ ] **Step 5: Commit**
+- [ ] **手順 5: コミット**
 
 ```bash
 git add backend/bfps/climatology/trajectory.py backend/tests/test_climatology_trajectory.py
@@ -718,21 +718,21 @@ git commit -m "feat(backend): mean-wind trajectory for climatology mode"
 
 ---
 
-### Task 4: API（predict.py・schemas・route・config）
+### タスク 4: API（predict.py・schemas・route・config）
 
-**Files:**
-- Create: `backend/bfps/climatology/predict.py`
-- Create: `backend/bfps/api/routes_climatology.py`
-- Modify: `backend/bfps/models/schemas.py`（末尾に追加）
-- Modify: `backend/bfps/config.py`
-- Modify: `backend/bfps/main.py`
-- Test: `backend/tests/test_climatology_api.py`
+**ファイル:**
+- 新規: `backend/bfps/climatology/predict.py`
+- 新規: `backend/bfps/api/routes_climatology.py`
+- 変更: `backend/bfps/models/schemas.py`（末尾に追加）
+- 変更: `backend/bfps/config.py`
+- 変更: `backend/bfps/main.py`
+- テスト: `backend/tests/test_climatology_api.py`
 
-**Interfaces:**
-- Consumes: Task 1–3 の関数すべて
-- Produces（HTTP）: `POST /api/climatology/predict`。リクエスト・レスポンスは下の `ClimatologyRequest` / `ClimatologyResponse`。フロントエンド（Task 6）はこの JSON の名前に合わせる。
+**受け渡し:**
+- 使うもの: タスク 1–3 の関数すべて
+- 作るもの（HTTP）: `POST /api/climatology/predict`。リクエスト・レスポンスは下の `ClimatologyRequest` / `ClimatologyResponse`。フロントエンド（タスク 6）はこの JSON の名前に合わせる。
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [ ] **手順 1: 失敗するテストを書く**
 
 `backend/tests/test_climatology_api.py`:
 
@@ -831,12 +831,12 @@ def test_real_db_standard_flight_matches_fact_drift():
     assert cov[0, 0] + cov[1, 1] == pytest.approx(ev + nv, rel=0.05)
 ```
 
-- [ ] **Step 2: 失敗を確かめる**
+- [ ] **手順 2: 失敗を確かめる**
 
-Run: `cd backend && .venv/bin/pytest tests/test_climatology_api.py -q`
-Expected: FAIL（`cannot import name 'routes_climatology'`）
+実行: `cd backend && .venv/bin/pytest tests/test_climatology_api.py -q`
+期待する結果: 失敗（`cannot import name 'routes_climatology'`）
 
-- [ ] **Step 3: config に設定を足す**
+- [ ] **手順 3: config に設定を足す**
 
 `backend/bfps/config.py` の `Settings` に 1 行足す（`tawhiri_url` の下）:
 
@@ -844,7 +844,7 @@ Expected: FAIL（`cannot import name 'routes_climatology'`）
     climatology_db: str = "../v2/jra3q_japan_wind_2016-2025_v2.duckdb"
 ```
 
-- [ ] **Step 4: schemas を足す**
+- [ ] **手順 4: schemas を足す**
 
 `backend/bfps/models/schemas.py` の末尾に追加:
 
@@ -892,7 +892,7 @@ class ClimatologyResponse(BaseModel):
     warnings: list[str] = []
 ```
 
-- [ ] **Step 5: predict.py を書く**
+- [ ] **手順 5: predict.py を書く**
 
 `backend/bfps/climatology/predict.py`:
 
@@ -977,7 +977,7 @@ def predict(store: ClimatologyStore, lat: float, lon: float, launch: datetime,
 最上層の風がそのまま使われる。warnings の文言はそれを説明している。テストは「40 km」を含むことを
 確かめる（合成 DB の最上層は 40000 m）。
 
-- [ ] **Step 6: route を書く**
+- [ ] **手順 6: route を書く**
 
 `backend/bfps/api/routes_climatology.py`:
 
@@ -1056,17 +1056,17 @@ from .api import routes_climatology, routes_health, routes_optimize, routes_simu
     app.include_router(routes_climatology.router)
 ```
 
-- [ ] **Step 7: テストが通ることを確かめる**
+- [ ] **手順 7: テストが通ることを確かめる**
 
-Run: `cd backend && .venv/bin/pytest tests/test_climatology_api.py -q`
-Expected: 5 passed（本物の DB がある環境）。無い環境では 4 passed, 1 skipped。
+実行: `cd backend && .venv/bin/pytest tests/test_climatology_api.py -q`
+期待する結果: 5 件成功（本物の DB がある環境）。無い環境では 4 件成功・1 件スキップ。
 
-- [ ] **Step 8: 全テストと lint**
+- [ ] **手順 8: 全テストと lint**
 
-Run: `cd backend && .venv/bin/pytest -q && .venv/bin/ruff check bfps tests`
-Expected: すべて PASS、ruff の指摘なし。
+実行: `cd backend && .venv/bin/pytest -q && .venv/bin/ruff check bfps tests`
+期待する結果: すべて成功、ruff の指摘なし。
 
-- [ ] **Step 9: 本物の DB で手で叩く**
+- [ ] **手順 9: 本物の DB で手で叩く**
 
 ```bash
 cd backend && .venv/bin/uvicorn bfps.main:app --port 8000 &
@@ -1077,9 +1077,9 @@ curl -s -X POST localhost:8000/api/climatology/predict -H 'content-type: applica
 kill %1
 ```
 
-Expected: `1月前半`、壱岐の格子点（距離 30 km 以内）、平均落下点が東へ約 2.3 度（瀬戸内海の西）、ρ が 0.3–0.7。
+期待する結果: `1月前半`、壱岐の格子点（距離 30 km 以内）、平均落下点が東へ約 2.3 度（瀬戸内海の西）、ρ が 0.3–0.7。
 
-- [ ] **Step 10: Commit**
+- [ ] **手順 10: コミット**
 
 ```bash
 git add backend/bfps
@@ -1089,19 +1089,19 @@ git commit -m "feat(backend): POST /api/climatology/predict"
 
 ---
 
-### Task 5: 発射時刻の 3 分類（frontend）
+### タスク 5: 発射時刻の 3 分類（frontend）
 
-**Files:**
-- Create: `frontend/src/time/forecastWindow.ts`
-- Test: `frontend/src/time/forecastWindow.test.ts`
+**ファイル:**
+- 新規: `frontend/src/time/forecastWindow.ts`
+- テスト: `frontend/src/time/forecastWindow.test.ts`
 
-**Interfaces:**
+**受け渡し:**
 - Produces:
   - `type LaunchTimeClass = { kind: 'forecast' } | { kind: 'climatology' } | { kind: 'error'; message: string }`
   - `classifyLaunchTime(launchDatetimeIso: string, nowMs?: number): LaunchTimeClass`
   - 定数 `FORECAST_PAST_MS = 12 * 3600 * 1000`, `FORECAST_FUTURE_MS = 7 * 24 * 3600 * 1000`
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [ ] **手順 1: 失敗するテストを書く**
 
 `frontend/src/time/forecastWindow.test.ts`:
 
@@ -1135,12 +1135,12 @@ describe('classifyLaunchTime', () => {
 })
 ```
 
-- [ ] **Step 2: 失敗を確かめる**
+- [ ] **手順 2: 失敗を確かめる**
 
-Run: `cd frontend && npx vitest run src/time/forecastWindow.test.ts`
-Expected: FAIL（`Failed to resolve import "./forecastWindow"`）
+実行: `cd frontend && npx vitest run src/time/forecastWindow.test.ts`
+期待する結果: 失敗（`Failed to resolve import "./forecastWindow"`）
 
-- [ ] **Step 3: 実装する**
+- [ ] **手順 3: 実装する**
 
 `frontend/src/time/forecastWindow.ts`:
 
@@ -1169,12 +1169,12 @@ export function classifyLaunchTime(
 }
 ```
 
-- [ ] **Step 4: テストが通ることを確かめる**
+- [ ] **手順 4: テストが通ることを確かめる**
 
-Run: `cd frontend && npx vitest run src/time/forecastWindow.test.ts`
-Expected: 3 passed
+実行: `cd frontend && npx vitest run src/time/forecastWindow.test.ts`
+期待する結果: 3 件成功
 
-- [ ] **Step 5: Commit**
+- [ ] **手順 5: コミット**
 
 ```bash
 git add frontend/src/time/forecastWindow.ts frontend/src/time/forecastWindow.test.ts
@@ -1183,17 +1183,17 @@ git commit -m "feat(frontend): classify launch time into forecast/climatology/er
 
 ---
 
-### Task 6: 統計モードの API クライアントと変換（frontend）
+### タスク 6: 統計モードの API クライアントと変換（frontend）
 
-**Files:**
-- Create: `frontend/src/api/climatology.ts`
-- Test: `frontend/src/api/climatology.test.ts`
+**ファイル:**
+- 新規: `frontend/src/api/climatology.ts`
+- テスト: `frontend/src/api/climatology.test.ts`
 
-**Interfaces:**
-- Consumes: `backendBaseUrl()`（`api/backend.ts`）、`Flight`, `TrajectoryPoint`（`api/tawhiriTypes.ts`）、Task 4 の JSON
+**受け渡し:**
+- 使うもの: `backendBaseUrl()`（`api/backend.ts`）、`Flight`, `TrajectoryPoint`（`api/tawhiriTypes.ts`）、タスク 4 の JSON
 - Produces:
   - `interface ClimatologyRequest { launch_latitude; launch_longitude; launch_altitude; launch_datetime; ascent_rate; burst_altitude; descent_rate; n_samples; seed }`（number / string）
-  - `interface ClimatologyResponse`（Task 4 のレスポンスと同じ名前）
+  - `interface ClimatologyResponse`（タスク 4 のレスポンスと同じ名前）
   - `interface ClimatologyInfo { label: string; period: string; cellLat: number; cellLon: number; cellDistanceKm: number; rho: number; warnings: string[] }`
   - `const BACKEND_REQUIRED_MESSAGE = '統計モードにはバックエンドが必要です（VITE_API_BASE を設定してください）'`
   - `requestClimatology(req: ClimatologyRequest, opts?: { signal?: AbortSignal; baseUrl?: string | null }): Promise<ClimatologyResponse>`
@@ -1201,7 +1201,7 @@ git commit -m "feat(frontend): classify launch time into forecast/climatology/er
   - `toSampleFlights(res: ClimatologyResponse, launchIso: string): Flight[]`（各標本の着地点だけを持つ Flight）
   - `toInfo(res: ClimatologyResponse): ClimatologyInfo`
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [ ] **手順 1: 失敗するテストを書く**
 
 `frontend/src/api/climatology.test.ts`:
 
@@ -1290,12 +1290,12 @@ describe('requestClimatology', () => {
 })
 ```
 
-- [ ] **Step 2: 失敗を確かめる**
+- [ ] **手順 2: 失敗を確かめる**
 
-Run: `cd frontend && npx vitest run src/api/climatology.test.ts`
-Expected: FAIL（`Failed to resolve import "./climatology"`）
+実行: `cd frontend && npx vitest run src/api/climatology.test.ts`
+期待する結果: 失敗（`Failed to resolve import "./climatology"`）
 
-- [ ] **Step 3: 実装する**
+- [ ] **手順 3: 実装する**
 
 `frontend/src/api/climatology.ts`:
 
@@ -1423,12 +1423,12 @@ export function toInfo(res: ClimatologyResponse): ClimatologyInfo {
 }
 ```
 
-- [ ] **Step 4: テストが通ることを確かめる**
+- [ ] **手順 4: テストが通ることを確かめる**
 
-Run: `cd frontend && npx vitest run src/api/climatology.test.ts`
-Expected: 5 passed
+実行: `cd frontend && npx vitest run src/api/climatology.test.ts`
+期待する結果: 5 件成功
 
-- [ ] **Step 5: Commit**
+- [ ] **手順 5: コミット**
 
 ```bash
 git add frontend/src/api/climatology.ts frontend/src/api/climatology.test.ts
@@ -1437,23 +1437,23 @@ git commit -m "feat(frontend): climatology API client and converters"
 
 ---
 
-### Task 7: 画面への組み込み（frontend）
+### タスク 7: 画面への組み込み（frontend）
 
-**Files:**
-- Modify: `frontend/src/store/resultsStore.ts`
-- Modify: `frontend/src/hooks/useRunPrediction.ts`
-- Modify: `frontend/src/mc/useMonteCarlo.ts`
-- Modify: `frontend/src/components/mc/MonteCarloPanel.tsx`
-- Modify: `frontend/src/components/ScenarioInfo.tsx`
+**ファイル:**
+- 変更: `frontend/src/store/resultsStore.ts`
+- 変更: `frontend/src/hooks/useRunPrediction.ts`
+- 変更: `frontend/src/mc/useMonteCarlo.ts`
+- 変更: `frontend/src/components/mc/MonteCarloPanel.tsx`
+- 変更: `frontend/src/components/ScenarioInfo.tsx`
 
-**Interfaces:**
-- Consumes: `classifyLaunchTime`（Task 5）、`requestClimatology`, `toFlight`, `toSampleFlights`, `toInfo`, `ClimatologyInfo`（Task 6）
+**受け渡し:**
+- 使うもの: `classifyLaunchTime`（タスク 5）、`requestClimatology`, `toFlight`, `toSampleFlights`, `toInfo`, `ClimatologyInfo`（タスク 6）
 - Produces:
   - `resultsStore`: `mode: 'forecast' | 'climatology'`, `climatologyInfo: ClimatologyInfo | null`, `setClimatology(info: ClimatologyInfo | null)`（`mode` も同時に切り替える）
   - `buildClimatologyRequest(nSamples: number, seed: number): ClimatologyRequest`（`useRunPrediction.ts`）
   - `useMonteCarlo().runClimatology(nSamples: number, seed: number): Promise<void>`
 
-- [ ] **Step 1: resultsStore に mode と情報を足す**
+- [ ] **手順 1: resultsStore に mode と情報を足す**
 
 `frontend/src/store/resultsStore.ts`:
 
@@ -1480,7 +1480,7 @@ import type { ClimatologyInfo } from '../api/climatology'
 
 `clearAll` の set に `mode: 'forecast', climatologyInfo: null,` を足す。
 
-- [ ] **Step 2: 単発の実行を分岐する**
+- [ ] **手順 2: 単発の実行を分岐する**
 
 `frontend/src/hooks/useRunPrediction.ts`:
 
@@ -1560,7 +1560,7 @@ export function buildClimatologyRequest(nSamples: number, seed: number): Climato
   }, [])
 ```
 
-- [ ] **Step 3: モンテカルロに統計モードを足す**
+- [ ] **手順 3: モンテカルロに統計モードを足す**
 
 `frontend/src/mc/useMonteCarlo.ts`:
 
@@ -1649,7 +1649,7 @@ async function finishStatsAndSafety(): Promise<void> {
 注: 標本を 1 点ずつ `addMcSample` すると最大 2000 回 set が走る。遅ければ `resultsStore` に
 `setMcSamples(samples: MCSampleResult[])` を足して一度に入れる（その場合は Step 1 の Interfaces に追記）。
 
-- [ ] **Step 4: モンテカルロのパネルを分岐する**
+- [ ] **手順 4: モンテカルロのパネルを分岐する**
 
 `frontend/src/components/mc/MonteCarloPanel.tsx`:
 
@@ -1707,7 +1707,7 @@ import { jstInputToUtcIso } from '../../time/jst'
 統計モードのときは試行回数の上限を 2000 にする（`max={isClimatology ? 2000 : MC_MAX_SAMPLES}`、
 `onChange` の上限も同じ）。
 
-- [ ] **Step 5: ScenarioInfo に帯を出す**
+- [ ] **手順 5: ScenarioInfo に帯を出す**
 
 `frontend/src/components/ScenarioInfo.tsx`:
 
@@ -1754,12 +1754,12 @@ import { jstInputToUtcIso } from '../../time/jst'
 }
 ```
 
-- [ ] **Step 6: 型・lint・テスト**
+- [ ] **手順 6: 型・lint・テスト**
 
-Run: `cd frontend && npx tsc -b && npm run lint && npx vitest run`
-Expected: エラーなし、すべて PASS。
+実行: `cd frontend && npx tsc -b && npm run lint && npx vitest run`
+期待する結果: エラーなし、すべて成功。
 
-- [ ] **Step 7: 動かして確かめる**
+- [ ] **手順 7: 動かして確かめる**
 
 ```bash
 npm run dev    # リポジトリのルートで。frontend :5173 と backend :8000
@@ -1774,7 +1774,7 @@ npm run dev    # リポジトリのルートで。frontend :5173 と backend :80
 
 画面の確認はスクリーンショットを撮って目視する。
 
-- [ ] **Step 8: Commit**
+- [ ] **手順 8: コミット**
 
 ```bash
 git add frontend/src
@@ -1783,12 +1783,12 @@ git commit -m "feat(frontend): climatology mode beyond the Tawhiri forecast wind
 
 ---
 
-### Task 8: README
+### タスク 8: README
 
-**Files:**
-- Modify: `README.md`
+**ファイル:**
+- 変更: `README.md`
 
-- [ ] **Step 1: 統計モードの節を足す**
+- [ ] **手順 1: 統計モードの節を足す**
 
 `README.md` のバックエンドの説明の近くに追記:
 
@@ -1806,7 +1806,7 @@ git commit -m "feat(frontend): climatology mode beyond the Tawhiri forecast wind
 - データ: JRA-3Q（気象庁）。派生物は CC BY-NC-SA 4.0（非商用）。
 ```
 
-- [ ] **Step 2: Commit**
+- [ ] **手順 2: コミット**
 
 ```bash
 git add README.md
