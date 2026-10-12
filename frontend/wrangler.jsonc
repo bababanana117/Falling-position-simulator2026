@@ -1,0 +1,14 @@
+{
+  "name": "falling-position-simulator",
+  "compatibility_date": "2026-08-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  },
+  "routes": [
+    {
+      "pattern": "cusf2026.ddd3h.com",
+      "custom_domain": true
+    }
+  ]
+}

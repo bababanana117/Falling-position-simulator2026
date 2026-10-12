@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "deploy:cf": "VITE_API_BASE=https://api.cusf2026.ddd3h.com npm run build && npx wrangler deploy"
   },
   "dependencies": {
     "@navaramap/three": "^0.1.1",

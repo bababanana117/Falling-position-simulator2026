@@ -1,4 +1,8 @@
-name: Build and deploy to Pages
+name: Build and deploy to Cloudflare
+
+# main への push で、テスト → ビルド → ドキュメント → Cloudflare Workers（静的配信）へ公開する。
+# 公開先は frontend/wrangler.jsonc の custom domain（https://cusf2026.ddd3h.com）。
+# 必要なリポジトリの secrets: CLOUDFLARE_API_TOKEN（Workers の編集権限）, CLOUDFLARE_ACCOUNT_ID
 
 on:
   push:
@@ -7,15 +11,13 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: "pages"
+  group: "deploy"
   cancel-in-progress: true
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -36,29 +38,17 @@ jobs:
         working-directory: frontend
         run: npm run build
         env:
-          # 独自ドメイン https://cusf2026.ddd3h.com で配信するのでルート配下。
-          # 統計モード（7 日より先）が呼ぶバックエンド。
-          GHPAGES_BASE: /
+          # 統計モード（7 日より先）が呼ぶバックエンド
           VITE_API_BASE: https://api.cusf2026.ddd3h.com
       - name: Build Sphinx docs (optional)
         continue-on-error: true
         run: |
           pip install -r docs/requirements.txt
           python -m sphinx -b html docs/source frontend/dist/docs
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy to Cloudflare
+        uses: cloudflare/wrangler-action@v3
         with:
-          path: frontend/dist
-
-  deploy:
-    needs: build
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: frontend
+          command: deploy
