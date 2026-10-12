@@ -91,6 +91,25 @@ cd frontend
 VITE_API_BASE=http://localhost:8000 npm run dev
 ```
 
+### バックエンドの公開（Docker）
+
+公開版のフロントエンドは `https://api.cusf2026.ddd3h.com` のバックエンドを呼ぶ。
+サーバーでは `backend/compose.yaml` がバックエンドと Caddy を起動し、Caddy が
+Let's Encrypt の証明書を自動で取る。
+
+1. サーバーに Docker を入れ、80/443 番を開ける
+2. DNS で `api.cusf2026` の A レコードをサーバーへ向ける（Cloudflare なら DNS only・灰色のクラウド）
+3. 統計風 DuckDB を `/srv/clim/` に置く
+4. 起動して確認する
+
+```bash
+cd backend
+docker compose up -d --build
+curl https://api.cusf2026.ddd3h.com/api/health   # {"status":"ok",...}
+```
+
+詳しくは `docs/source/deployment.rst`（Sphinx の「デプロイ・配信の仕組み」）。
+
 ### 統計モード（7 日より先）
 
 発射時刻が Tawhiri の予報窓（現在 −12 時間〜+7 日）より先のとき、単発実行とモンテカルロは

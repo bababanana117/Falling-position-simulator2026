@@ -50,7 +50,19 @@
 - デプロイ (``cloudflare/wrangler-action@v3``、``command: deploy``) には
   リポジトリのsecretsとして ``CLOUDFLARE_API_TOKEN``
   (Workersの編集権限を持つAPIトークン)と ``CLOUDFLARE_ACCOUNT_ID`` が
-  必要
+  必要。未設定だとデプロイの手順が ``In a non-interactive environment,
+  it's necessary to set a CLOUDFLARE_API_TOKEN environment variable``
+  で失敗する。設定の手順は次のとおり
+
+  1. Cloudflareのダッシュボードで「My Profile → API Tokens → Create
+     Token」を開き、テンプレート「Edit Cloudflare Workers」でトークンを
+     作る
+  2. アカウントIDは、ダッシュボードの「Workers & Pages」の右側にある
+     「Account ID」をコピーする
+  3. GitHubのリポジトリで「Settings → Secrets and variables → Actions →
+     New repository secret」から、上の2つをそれぞれ
+     ``CLOUDFLARE_API_TOKEN`` と ``CLOUDFLARE_ACCOUNT_ID`` の名前で登録する
+  4. 「Actions」タブで失敗した実行を開き、「Re-run jobs」でやり直す
 - 配信先は ``not_found_handling: "single-page-application"`` により、
   存在しないパスへのアクセスは ``index.html`` にフォールバックする
   (SPA向けの設定)
@@ -137,6 +149,57 @@ Gitで管理していない。バックエンドを動かすサーバーに別�
   証明書(Let's Encrypt等)を用意する
 - ``api.cusf2026.ddd3h.com`` ではなく ``api-cusf2026.ddd3h.com`` のような
   1階層目のサブドメインにする
+
+このリポジトリでは前者を選び、次の Docker Compose の構成で Caddy に
+証明書を取らせる。
+
+Docker Composeで動かす
+~~~~~~~~~~~~~~~~~~~~~~
+
+``backend/compose.yaml`` は2つのコンテナを起動する。
+
+- ``api``: ``backend/Dockerfile`` からビルドしたバックエンド。ホストの
+  ``/srv/clim`` を ``/data`` に読み取り専用でマウントし、
+  ``BFPS_CLIMATOLOGY_DB=/data/jra3q_japan_wind_2016-2025_v2.duckdb`` を渡す。
+  ポートはホストに公開しない。
+- ``caddy``: ``backend/Caddyfile`` に従って ``api.cusf2026.ddd3h.com`` への
+  HTTPS を受け、``api:8080`` へ転送する。Let's Encrypt の証明書は Caddy が
+  自動で取得・更新し、ボリューム ``caddy_data`` に保存する。
+
+サーバーで必要な準備と起動の手順は次のとおり。
+
+1. Docker と Docker Compose を入れる。
+2. ファイアウォールで80番と443番を開ける(80番は証明書の取得に使う)。
+3. DNSで ``api.cusf2026`` のAレコードをサーバーのIPアドレスに向ける。
+   CloudflareのDNSを使う場合は、プロキシをオフ(灰色のクラウド、
+   DNS only)にする。オンのままだと上記の理由でHTTPSが通らない。
+4. 統計風DuckDBをサーバーへコピーする。
+
+   .. code-block:: bash
+
+      sudo mkdir -p /srv/clim
+      scp v2/jra3q_japan_wind_2016-2025_v2.duckdb server:/srv/clim/
+
+5. リポジトリを取得し、``backend/`` で起動する。
+
+   .. code-block:: bash
+
+      git clone https://github.com/ddd3h/Falling-position-simulator2026.git
+      cd Falling-position-simulator2026/backend
+      docker compose up -d --build
+
+6. 動作を確かめる。``{"status":"ok","version":"0.1.0"}`` が返れば、
+   バックエンドはHTTPSで公開できている。統計モードがDuckDBを読めるかは、
+   フロントエンド (``https://cusf2026.ddd3h.com``) で8日以上先の日時を
+   選んで実行すると分かる(読めないときは503のエラーが出る)。
+
+   .. code-block:: bash
+
+      curl https://api.cusf2026.ddd3h.com/api/health
+
+コードを更新したときは ``git pull`` のあとに ``docker compose up -d --build``
+を、ログを見るときは ``docker compose logs -f`` を実行する。DuckDBを
+差し替えたときは ``docker compose restart api`` で読み直させる。
 
 ローカル開発
 ------------

@@ -1,0 +1,5 @@
+# api.cusf2026.ddd3h.com への HTTPS を受けて、api コンテナ（uvicorn, 8080 番）へ渡す。
+# 証明書は Caddy が Let's Encrypt から自動で取る。
+api.cusf2026.ddd3h.com {
+	reverse_proxy api:8080
+}
