@@ -28,7 +28,7 @@ export function ScenarioInfo() {
       {info && (
         <div className="climatology-banner" role="status">
           <b>
-            統計モード（気候値・{info.label}、{info.period} 年）— 予報ではありません
+            統計モード（気候値・{info.label}、JRA-3Q {info.period} 年）— 予報ではありません
           </b>
           <div>
             使った格子点: {info.cellLat.toFixed(2)}, {info.cellLon.toFixed(2)}（

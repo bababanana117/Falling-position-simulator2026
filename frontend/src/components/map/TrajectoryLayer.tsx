@@ -77,6 +77,7 @@ export function TrajectoryLayer() {
   const hourly = useResultsStore((s) => s.hourlyResults)
   const mcSamples = useResultsStore((s) => s.mcSamples)
   const mcCentral = useResultsStore((s) => s.mcCentral)
+  const mode = useResultsStore((s) => s.mode)
 
   const maxHour = Math.max(1, ...hourly.map((h) => h.hourOffset))
 
@@ -123,10 +124,20 @@ export function TrajectoryLayer() {
                 <b>[{CATEGORY_LABEL[s.category]}]</b>
               </>
             )}
-            <br />
-            上昇 {s.perturbed.ascentRate.toFixed(2)} m/s / バースト{' '}
-            {Math.round(s.perturbed.burstAltitude)} m / 降下{' '}
-            {s.perturbed.descentRate.toFixed(2)} m/s
+            {mode === 'climatology' ? (
+              <>
+                <br />
+                着地 ({s.flight.landing.latitude.toFixed(4)},{' '}
+                {s.flight.landing.longitude.toFixed(4)})
+              </>
+            ) : (
+              <>
+                <br />
+                上昇 {s.perturbed.ascentRate.toFixed(2)} m/s / バースト{' '}
+                {Math.round(s.perturbed.burstAltitude)} m / 降下{' '}
+                {s.perturbed.descentRate.toFixed(2)} m/s
+              </>
+            )}
           </Popup>
         </CircleMarker>
       ))}
