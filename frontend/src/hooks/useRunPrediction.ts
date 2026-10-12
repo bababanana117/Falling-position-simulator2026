@@ -1,8 +1,11 @@
 import { useCallback, useRef } from 'react'
+import { requestClimatology, toFlight, toInfo } from '../api/climatology'
+import type { ClimatologyRequest } from '../api/climatology'
 import { requestPrediction } from '../api/tawhiri'
 import type { TawhiriRequest } from '../api/tawhiriTypes'
 import { TawhiriError } from '../api/tawhiriTypes'
 import { jitterMs, tawhiriSemaphore } from '../api/semaphore'
+import { classifyLaunchTime } from '../time/forecastWindow'
 import { jstInputToUtcIso } from '../time/jst'
 import { useParamsStore } from '../store/paramsStore'
 import { useResultsStore } from '../store/resultsStore'
@@ -35,13 +38,28 @@ export function buildBaseRequest(): TawhiriRequest {
   }
 }
 
-/** 発射時刻の妥当性チェック (GFSモデル窓: 現在-12h 〜 +7日) */
+/** 発射時刻の妥当性チェック (GFSモデル窓: 現在-12h 〜 +7日)。毎時モード用 */
 export function validateLaunchTime(launchDatetimeIso: string): string | null {
-  const t = Date.parse(launchDatetimeIso)
-  const now = Date.now()
-  if (t < now - 12 * 3600 * 1000) return '発射時刻が過去すぎます (気象モデル範囲外)'
-  if (t > now + 7 * 24 * 3600 * 1000) return '発射時刻が未来すぎます (気象モデル範囲外)'
+  const c = classifyLaunchTime(launchDatetimeIso)
+  if (c.kind === 'error') return c.message
+  if (c.kind === 'climatology') return '発射時刻が未来すぎます (気象モデル範囲外)'
   return null
+}
+
+/** 統計モードのリクエスト (フォームの値から) */
+export function buildClimatologyRequest(nSamples: number, seed: number): ClimatologyRequest {
+  const p = useParamsStore.getState()
+  return {
+    launch_latitude: p.latitude,
+    launch_longitude: p.longitude,
+    launch_altitude: p.launchAltitude,
+    launch_datetime: jstInputToUtcIso(p.launchTimeJst),
+    ascent_rate: p.ascentRate,
+    burst_altitude: p.burstAltitude,
+    descent_rate: p.descentRate,
+    n_samples: nSamples,
+    seed,
+  }
 }
 
 export function useRunPrediction() {
@@ -55,19 +73,30 @@ export function useRunPrediction() {
   const runSingle = useCallback(async () => {
     const results = useResultsStore.getState()
     const req = buildBaseRequest()
-    const err = validateLaunchTime(req.launch_datetime)
-    if (err) {
-      results.setError(err)
+    const cls = classifyLaunchTime(req.launch_datetime)
+    if (cls.kind === 'error') {
+      results.setError(cls.message)
       return
     }
     abortRef.current = new AbortController()
     results.clearAll()
     results.setRunning(true)
     try {
-      const flight = await tawhiriSemaphore.run(() =>
-        requestPrediction(req, { signal: abortRef.current!.signal }),
-      )
-      results.setSingle(flight)
+      if (cls.kind === 'climatology') {
+        if (req.profile !== 'standard_profile') {
+          throw new Error('統計モードは標準プロファイルのみ対応です')
+        }
+        const res = await requestClimatology(buildClimatologyRequest(10, 42), {
+          signal: abortRef.current.signal,
+        })
+        results.setSingle(toFlight(res, req.launch_datetime))
+        useResultsStore.getState().setClimatology(toInfo(res))
+      } else {
+        const flight = await tawhiriSemaphore.run(() =>
+          requestPrediction(req, { signal: abortRef.current!.signal }),
+        )
+        results.setSingle(flight)
+      }
     } catch (e) {
       if (!(e instanceof DOMException && e.name === 'AbortError')) {
         results.setError(e instanceof Error ? e.message : String(e))

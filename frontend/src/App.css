@@ -81,6 +81,22 @@
   margin: 0 0 0.4rem;
 }
 
+.climatology-banner {
+  background: #fff4d6;
+  border: 1px solid #e0a800;
+  border-radius: 6px;
+  padding: 0.5em 0.75em;
+  margin-bottom: 0.5em;
+  font-size: 0.9em;
+}
+.climatology-warning {
+  color: #a15c00;
+}
+.mc-note {
+  font-size: 0.85em;
+  color: #6b5200;
+}
+
 progress {
   width: 100%;
 }

@@ -1,6 +1,8 @@
 import { useCallback, useRef } from 'react'
+import { requestClimatology, toFlight, toInfo, toSampleFlights } from '../api/climatology'
 import { MAX_CONCURRENT_TAWHIRI, tawhiriSemaphore } from '../api/semaphore'
 import { requestPrediction } from '../api/tawhiri'
+import { buildClimatologyRequest } from '../hooks/useRunPrediction'
 import { loadLandData } from '../optimizer/landSea'
 import { fetchElevations } from '../safety/elevation'
 import {
@@ -15,6 +17,41 @@ import { partitionIndices } from './sampling'
 import type { MCConfig, MCWorkerReply } from './mcTypes'
 
 export const MC_MAX_SAMPLES = 500
+
+/** 統計計算 (landings の集計) と安全判定 (陸海/除外区域データ+標高) */
+async function finishStatsAndSafety(): Promise<void> {
+  const store = useResultsStore.getState()
+  const landings = store.mcSamples.map((s) => ({
+    lat: s.flight.landing.latitude,
+    lon: s.flight.landing.longitude,
+  }))
+  if (landings.length >= 5) {
+    store.setMcStats(computeLandingStats(landings))
+  }
+  try {
+    const baseUrl = import.meta.env.BASE_URL
+    await Promise.all([loadLandData(baseUrl), loadSafetyData(baseUrl)])
+    const samplesSnapshot = useResultsStore.getState().mcSamples
+    const elevations = await fetchElevations(
+      samplesSnapshot.map((s) => ({
+        lat: s.flight.landing.latitude,
+        lon: s.flight.landing.longitude,
+      })),
+    )
+    const categories = new Map<number, SafetyCategory>()
+    const breakdown = emptyBreakdown()
+    samplesSnapshot.forEach((s, i) => {
+      const cat = classify(s.flight.landing.latitude, s.flight.landing.longitude, elevations[i])
+      categories.set(s.index, cat)
+      breakdown[cat]++
+    })
+    const finalStore = useResultsStore.getState()
+    finalStore.applyCategories(categories)
+    finalStore.setMcSafety(breakdown)
+  } catch {
+    // 安全判定はベストエフォート (データ取得失敗でもMC結果自体は有効)
+  }
+}
 
 export function useMonteCarlo() {
   const workersRef = useRef<Worker[]>([])
@@ -103,48 +140,41 @@ export function useMonteCarlo() {
       for (const w of workersRef.current) w.terminate()
       workersRef.current = []
 
-      // 統計計算
-      const store = useResultsStore.getState()
-      const landings = store.mcSamples.map((s) => ({
-        lat: s.flight.landing.latitude,
-        lon: s.flight.landing.longitude,
-      }))
-      if (landings.length >= 5) {
-        store.setMcStats(computeLandingStats(landings))
-      }
-
-      // 安全カテゴリ判定 (陸海/除外区域データ+標高)
-      try {
-        const baseUrl = import.meta.env.BASE_URL
-        await Promise.all([loadLandData(baseUrl), loadSafetyData(baseUrl)])
-        const samplesSnapshot = useResultsStore.getState().mcSamples
-        const elevations = await fetchElevations(
-          samplesSnapshot.map((s) => ({
-            lat: s.flight.landing.latitude,
-            lon: s.flight.landing.longitude,
-          })),
-        )
-        const categories = new Map<number, SafetyCategory>()
-        const breakdown = emptyBreakdown()
-        samplesSnapshot.forEach((s, i) => {
-          const cat = classify(
-            s.flight.landing.latitude,
-            s.flight.landing.longitude,
-            elevations[i],
-          )
-          categories.set(s.index, cat)
-          breakdown[cat]++
-        })
-        const finalStore = useResultsStore.getState()
-        finalStore.applyCategories(categories)
-        finalStore.setMcSafety(breakdown)
-      } catch {
-        // 安全判定はベストエフォート (データ取得失敗でもMC結果自体は有効)
-      }
+      await finishStatsAndSafety()
       useResultsStore.getState().setRunning(false)
     },
     [],
   )
 
-  return { run, cancel }
+  const runClimatology = useCallback(async (nSamples: number, seed: number) => {
+    const results = useResultsStore.getState()
+    results.clearAll()
+    results.setRunning(true)
+    try {
+      const req = buildClimatologyRequest(Math.min(2000, Math.max(10, nSamples)), seed)
+      const res = await requestClimatology(req)
+      const store = useResultsStore.getState()
+      store.setMcCentral(toFlight(res, req.launch_datetime))
+      const perturbed = {
+        ascentRate: req.ascent_rate,
+        burstAltitude: req.burst_altitude,
+        descentRate: req.descent_rate,
+      }
+      store.setMcSamples(
+        toSampleFlights(res, req.launch_datetime).map((flight, index) => ({
+          index,
+          flight,
+          perturbed,
+        })),
+      )
+      store.setClimatology(toInfo(res))
+      await finishStatsAndSafety()
+    } catch (e) {
+      useResultsStore.getState().setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      useResultsStore.getState().setRunning(false)
+    }
+  }, [])
+
+  return { run, runClimatology, cancel }
 }

@@ -14,6 +14,7 @@ export function ScenarioInfo() {
   const flight = useResultsStore((s) => s.singleFlight)
   const mcStats = useResultsStore((s) => s.mcStats)
   const mcSafety = useResultsStore((s) => s.mcSafety)
+  const info = useResultsStore((s) => s.climatologyInfo)
 
   if (!flight && !mcStats) return null
 
@@ -24,6 +25,20 @@ export function ScenarioInfo() {
   return (
     <div className="scenario-info">
       <h3>シナリオ情報</h3>
+      {info && (
+        <div className="climatology-banner" role="status">
+          <b>
+            統計モード（気候値・{info.label}、{info.period} 年）— 予報ではありません
+          </b>
+          <div>
+            使った格子点: {info.cellLat.toFixed(2)}, {info.cellLon.toFixed(2)}（
+            {info.cellDistanceKm.toFixed(0)} km）/ 層どうしの相関 ρ = {info.rho.toFixed(2)}
+          </div>
+          {info.warnings.map((w) => (
+            <div key={w} className="climatology-warning">{w}</div>
+          ))}
+        </div>
+      )}
       {flight && (
         <dl>
           <dt>着地予測</dt>

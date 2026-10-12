@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { buildBaseRequest, validateLaunchTime } from '../../hooks/useRunPrediction'
+import { buildBaseRequest } from '../../hooks/useRunPrediction'
 import { MC_MAX_SAMPLES, useMonteCarlo } from '../../mc/useMonteCarlo'
 import { useParamsStore } from '../../store/paramsStore'
 import { useResultsStore } from '../../store/resultsStore'
+import { classifyLaunchTime } from '../../time/forecastWindow'
+import { jstInputToUtcIso } from '../../time/jst'
 
 export function MonteCarloPanel() {
   const [samples, setSamples] = useState(100)
@@ -15,14 +17,21 @@ export function MonteCarloPanel() {
   const [seed, setSeed] = useState(42)
   const profile = useParamsStore((s) => s.profile)
   const running = useResultsStore((s) => s.running)
-  const { run, cancel } = useMonteCarlo()
+  const { run, runClimatology, cancel } = useMonteCarlo()
+  const launchTimeJst = useParamsStore((s) => s.launchTimeJst)
+  const isClimatology =
+    classifyLaunchTime(jstInputToUtcIso(launchTimeJst)).kind === 'climatology'
 
   const start = () => {
     const base = buildBaseRequest()
     if (base.profile !== 'standard_profile') return
-    const err = validateLaunchTime(base.launch_datetime)
-    if (err) {
-      useResultsStore.getState().setError(err)
+    const cls = classifyLaunchTime(base.launch_datetime)
+    if (cls.kind === 'error') {
+      useResultsStore.getState().setError(cls.message)
+      return
+    }
+    if (cls.kind === 'climatology') {
+      void runClimatology(samples, seed)
       return
     }
     void run({
@@ -42,20 +51,29 @@ export function MonteCarloPanel() {
     return <p>モンテカルロは標準プロファイルのみ対応です</p>
   }
 
+  const maxSamples = isClimatology ? 2000 : MC_MAX_SAMPLES
+
   return (
     <div className="mc-panel">
       <h3>モンテカルロ設定</h3>
+      {isClimatology && (
+        <p className="mc-note">
+          統計モード: 7 日より先なので、予報の代わりに 2016–2025 年の統計風で計算します。
+          散らばりは風のばらつきから出すため、下の上昇速度などのばらつきは使いません
+          (試行回数は最大 2000)。
+        </p>
+      )}
       <label>
-        試行回数 (最大 {MC_MAX_SAMPLES})
+        試行回数 (最大 {maxSamples})
         <input
           type="number"
           value={samples}
           min={10}
-          max={MC_MAX_SAMPLES}
+          max={maxSamples}
           step={10}
           onChange={(e) =>
             setSamples(
-              Math.min(MC_MAX_SAMPLES, Math.max(10, parseInt(e.target.value))),
+              Math.min(maxSamples, Math.max(10, parseInt(e.target.value))),
             )
           }
         />
