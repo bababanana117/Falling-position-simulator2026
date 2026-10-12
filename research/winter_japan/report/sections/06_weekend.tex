@@ -1,0 +1,86 @@
+\section{土日に実施できる確率}
+\label{sec:weekend}
+
+打ち上げは土日に行うことが多い。そこで、実施できる日が土日に当たる確率を、
+2016--2025 年の実際の暦（曜日・祝日）に日ごとの確率を当てはめて数えた。
+
+\subsection{数え方}
+
+\begin{itemize}
+  \item \textbf{土日の 1 日}: 土曜または日曜の 1 日を選んだとき、その日に実施できる確率。
+  \item \textbf{決めた土曜}: 何か月も前に「この土曜」と決めた場合の確率。
+  \item \textbf{土日のどちらか}: 1 回の週末（土・日の 2 日）のうち、どちらかの日に実施できる確率。
+    両日とも挑戦できる前提。
+  \item \textbf{土曜に実施できたとき日曜も}: 天気は続くので、土曜と日曜は独立ではない。
+    この値が「土日の 1 日」より高ければ、良い日はまとまって来る。
+  \item \textbf{1 冬に実施できる土日}: 12--2 月の約 26 日の土日のうち、実施できる日数の期待値。
+  \item \textbf{毎週末挑戦して $N$ 週以内}: ある週末から毎週末（土日の両日）挑戦したとき、
+    $N$ 回目の週末までに実施できる確率。12--2 月のどの週末から始めても同じ重みで数え、
+    2 月末で打ち切った。
+\end{itemize}
+
+飛行条件のばらつきによる成否は日ごとに独立な乱数で決めた。天気そのものは実際の日の
+並びをそのまま使っているので、悪天候が何日も続く効果は入っている。
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{土日の確率。上が標準の飛行、下が短時間の飛行。}
+\label{tab:weekend}
+\resizebox{\linewidth}{!}{\input{tables/weekend.tex}}
+\end{table}
+
+\subsection{結果}
+
+曜日によって天気が変わるわけではないので、「土日の 1 日」は全日の確率とほぼ同じになる。
+以下は全地点を同じ方法（地上気象は ERA5）で比べた値である。壱岐のアメダスによる値は
+表~\ref{tab:ikiweekend} にある。
+
+壱岐（標準の飛行、ERA5）では、土日の 1 日で \SI{30}{\percent}、1 回の週末のどちらかで
+\SI{49}{\percent} である。土曜に実施できた週末に日曜も実施できる確率は \SI{38}{\percent} で、
+1 日の確率（\SI{30}{\percent}）より高い。良い日は 2 日続きやすい。
+
+1 冬の 12--2 月に、壱岐で実施できる土日は平均 7.8 日ある。毎週末挑戦すると、
+2 週以内に \SI{71}{\percent}、4 週以内に \SI{88}{\percent} の確率で実施できる。
+短時間の飛行にすると 2 週以内が \SI{86}{\percent}、4 週以内が \SI{97}{\percent} に上がる。
+
+\textbf{日程を 1 日に固定すると約 3 割、週末の 2 日にしても約 5 割にとどまる}。
+予備日として同じ週末の 2 日と、その後の 2--3 週末を確保しておくのが現実的である。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{weekend.pdf}
+\caption{土日の確率。(a) 平日・土日・土日祝の 1 日あたりの確率。(b) 毎週末挑戦したとき、
+$N$ 回目の週末までに実施できる確率。(c) 各月に実施できる土日が 1 日以上ある確率。}
+\label{fig:weekend}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{calendar.pdf}
+\caption{日ごとの実施できる確率（標準の飛行）。行が冬（12 月〜翌 2 月）、列が日付。
+印は土日。良い日と悪い日がそれぞれ数日ずつかたまって現れる。}
+\label{fig:calendar}
+\end{figure}
+
+\subsection{月と年による違い}
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{月ごとの実施できる確率と、年末年始（12 月 29 日〜1 月 3 日）の確率。}
+\label{tab:months}
+\input{tables/months.tex}
+\end{table}
+
+月による違いは小さく、12 月・1 月・2 月のどれでも大きくは変わらない（表~\ref{tab:months}）。
+一方、年による違いは月による違いより大きい（図~\ref{fig:byyear}）。壱岐（標準の飛行）でも、
+実施できる確率は \SI{21}{\percent} の年（2021 年）から \SI{39}{\percent} の年（2023 年）まで開く。
+1 回の冬の経験で場所の良し悪しを判断しないほうがよい。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{by_year.pdf}
+\caption{年ごとの実施できる確率（その年の 1・2・12 月。冬のシーズンではなく暦年で分けた）。}
+\label{fig:byyear}
+\end{figure}

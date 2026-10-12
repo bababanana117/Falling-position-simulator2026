@@ -1,0 +1,207 @@
+\section{結果：愛媛（愛南町）}
+\label{sec:ehime}
+
+3 つ目の領域は、愛媛県南端の愛南町から上げる場合を想定したものである。
+\texttt{sites.json} の「愛媛・高知」には愛南町と周辺の 8 地点が登録されており、
+代表地点はそのうち\textbf{南レク御荘公園}（\ang{32.9642}N, \ang{132.5521}E）とした。
+和歌山と違って打ち上げ地点が決まっているので、
+北海道と同じく地点ごとの表（表\ref{tab:ainan-offshore}）も作れる。
+
+対象は \ang{31.5}--\ang{34.5}N / \ang{132.0}--\ang{136.0}E、
+\ang{0.375} 格子で 108 点。豊後水道の東半分から四国の南半分、土佐湾、
+紀伊水道の西側までを含む。
+
+\begin{whybox}{領域が打ち上げ地点を中心にしていない理由}
+愛南町は、取得済みのデータ範囲（マスター箱、\ang{132}--\ang{150}E）の西端から
+\ang{0.55}（約 \SI{51}{\kilo\metre}）しか離れていない。
+西へ広げるにはデータの取り直しが要るので、
+領域は地点を中心にせず、\textbf{東へ伸ばした}。
+この地点から上げた機体は 1 年のほとんどで東へ流されるので、
+統計が要るのも東側である。
+
+代償が 2 つある。
+1 つは、領域平均が地点より東（室戸岬や紀伊水道寄り）の風を多く含むことである。
+ただし後で見るとおり、この領域の中では風がほとんど変わらないので（図\ref{fig:f6-ehime}）、
+平均が地点の値から大きく離れることはない。
+もう 1 つは、夏に西へ流れる機体がデータの外へ出やすいことで、
+第 \ref{sec:fidelity} 章の軌道計算ではこれを数えて除外している
+（\ref{sec:fidelity-error} 節）。
+\end{whybox}
+
+最寄り格子（\ang{32.78}N, \ang{132.38}E）までは \SI{26.5}{\kilo\metre} ある。
+格子の対角のほぼ真ん中に地点が入るためで、\ang{0.375} 格子で起こりうる最大に近い。
+それでも下で見るように領域内の風の差は小さいので、この距離が結論を変えることはない。
+
+\subsection{年間を通した姿}
+
+\input{sections/_fig_e_f0}
+\input{sections/_fig_e_f1}
+\input{sections/_fig_e_f3}
+
+愛媛の上空は、\textbf{和歌山とほぼ同じ気候}である。
+\SI{200}{\hecto\pascal}（約 \SI{12.2}{\kilo\metre}）の平均風速は
+冬 \SI{75.4}{\metre\per\second}（定常度 0.98）、春 \SI{49.6}{\metre\per\second}、
+夏 \SI{21.9}{\metre\per\second}（定常度 0.55）、秋 \SI{39.4}{\metre\per\second}。
+和歌山の冬 \SI{75.5}{\metre\per\second}、夏 \SI{22.7}{\metre\per\second} とほとんど変わらない。
+いちばん強いのは 2 月前半の \SI{78.8}{\metre\per\second} である。
+
+2 つの領域は緯度がほぼ同じ（\ang{33}--\ang{34}N 付近）で、
+冬の亜熱帯ジェットの核がどちらの真上も通る。
+経度が \ang{2} ほど違っても、ジェットの強さはほとんど変わらない。
+北海道（冬 \SI{40.2}{\metre\per\second}）との差は、経度ではなく緯度の差である。
+
+\subsection{成層圏}
+
+\input{sections/_fig_e_f2}
+\input{sections/_fig_e_f7}
+
+\SI{10}{\hecto\pascal}（約 \SI{31}{\kilo\metre}）は、
+夏に \SI{18.5}{\metre\per\second}・定常度 0.99 の\textbf{東風}である。
+冬と春の定常度は 0.38、0.36 しかなく、
+最も低いのは 3 月後半（0.05）、1 月後半（0.13）、11 月前半（0.13）、
+2 月前半（0.17）、3 月前半（0.22）である。
+順位の入れ替わりはあるが、和歌山と同じ時期が並んでいる。
+冬の \SI{10}{\hecto\pascal} が東風（1 月の領域平均 $u = \SI{-4.2}{\metre\per\second}$）
+なのも北海道・和歌山と同じで、アリューシャン高気圧の西縁にあたる。
+
+風配図（図\ref{fig:f7-ehime-h1}、\ref{fig:f7-ehime-h2}）の格子点は、
+愛南町ではなく領域の中央（\ang{33.15}N, \ang{134.25}E、室戸岬付近）である。
+この図は領域の中央で描く決まりにしてあり、3 領域とも同じである。
+
+\subsection{領域の中で答えが変わるか}
+
+\input{sections/_fig_e_f6}
+
+領域内での平均風速の幅は最大 \SI{13.3}{\metre\per\second} で、
+和歌山（\SI{12.0}{\metre\per\second}）とほぼ同じ、
+北海道（\SI{31.7}{\metre\per\second}）の半分以下である。
+和歌山よりわずかに大きいのは、東西に \ang{4} と和歌山より \ang{1} 広いためである。
+
+したがって\textbf{愛媛の領域も、代表 1 地点でおおむね語ってよい}。
+領域平均が東へ偏っていること、最寄り格子まで \SI{26}{\kilo\metre} あることは、
+この小ささのおかげで問題にならない。
+実際、代表地点の最寄り格子で見ても \SI{200}{\hecto\pascal} は
+冬 \SI{75.7}{\metre\per\second}、夏 \SI{21.4}{\metre\per\second} で、領域平均と 1 割も違わない。
+
+\subsection{地図で見る}
+
+\input{sections/_fig_e_maps}
+
+\subsection{落下位置}
+
+\input{sections/_fig_e_drift}
+
+飛行時間は約 \num{137} 分、領域平均の飛行距離は年間平均 \SI{156}{\kilo\metre}。
+和歌山（\SI{158}{\kilo\metre}）とほぼ同じである。
+
+\begin{table}[H]
+\centering
+\caption{愛媛：飛行距離が最短・最長のビン（領域平均）。
+方位は機体が\textbf{進む}向き。}
+\begin{tabular}{lrrr}
+\toprule
+時期 & 平均距離 [\si{\kilo\metre}] & 方位 [度] & p90 [\si{\kilo\metre}] \\
+\midrule
+8 月 後半 & 50 & 281（西） & 85 \\
+9 月 前半 & 51 & 32（北北東） & 83 \\
+7 月 前半 & 54 & 96（東） & 89 \\
+\midrule
+2 月 前半 & 275 & 87（東） & 340 \\
+1 月 後半 & 270 & 88（東） & 339 \\
+12 月 後半 & 266 & 85（東） & 327 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+この表も和歌山とほとんど同じで、夏の飛行方位も同じように振れる。
+
+\begin{itemize}
+  \item 冬（12--2 月）は東へ \SIrange{248}{275}{\kilo\metre}。
+  \item 7 月後半から 8 月は\textbf{西寄り}（方位 \ang{252}--\ang{281}）、
+        9 月前半は北北東、7 月前半は東と、半月ごとに向きが変わる。
+        夏は対流圏上部の弱い西風と成層圏の東風がほぼ釣り合うので、
+        どちらが少し勝つかで向きが決まる。
+  \item 7--8 月の平均距離は \SIrange{50}{58}{\kilo\metre} だが、
+        東西に打ち消し合うので\textbf{平均落下点}は打ち上げ地点のすぐ近くになる。
+        \SI{50}{\kilo\metre} 飛ぶ機体が、ある日は東へ、別の日は西へ落ちるということである。
+\end{itemize}
+
+最後の点は、平均落下点だけを見ると誤解しやすい。
+たとえば 7 月前半の領域平均は、1 回あたり \SI{54}{\kilo\metre} 飛ぶのに、
+平均落下点は東へ \SI{12}{\kilo\metre} しか動かない。
+夏の計画では、平均の矢印ではなく散らばり（図\ref{fig:m8-ehime} の楕円）を見る必要がある。
+
+\subsection{南レク御荘公園から上げた場合}
+
+代表地点から上げたときの平均落下点を、陸か海か、最寄りの海岸まで何キロかで整理した。
+海岸線は北海道の表\ref{tab:voising-offshore} と同じもの
+（\texttt{frontend/public/geo/land.json}）を使っている。
+
+\begin{table}[H]
+\centering
+\caption{南レク御荘公園から上げた場合の平均落下点。
+飛行距離は 1 回ごとの距離の平均で、平均落下点までの距離とは違う。}
+\label{tab:ainan-offshore}
+\begin{tabular}{@{}llrrcr@{}}
+\toprule
+月 & ビン & {飛行距離 [\si{\kilo\metre}]} & {平均落下点の方位 [度]} & 陸／海 & {岸まで [\si{\kilo\metre}]} \\
+\midrule
+1 月  & 前半 & 264 & 88  & 海 & 59 \\
+1 月  & 後半 & 270 & 88  & 海 & 54 \\
+4 月  & 前半 & 177 & 88  & 海 & 32 \\
+4 月  & 後半 & 155 & 87  & 海 & 24 \\
+7 月  & 前半 & 53  & 95  & \textbf{陸} & 5 \\
+7 月  & 後半 & 59  & 257 & 海 & 10 \\
+10 月 & 前半 & 93  & 81  & 海 & 25 \\
+10 月 & 後半 & 151 & 83  & 海 & 15 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{7 月を除くと、平均落下点はどれも四国の南の海上である。}
+東へ \SIrange{85}{265}{\kilo\metre} 流されて、土佐湾の沖から紀伊半島の南西沖に落ちる。
+1 月は潮岬の西南西、岸から \SIrange{54}{59}{\kilo\metre} の沖で、
+4 つの季節で最も岸から遠い。
+
+\textbf{7 月は向きそのものが半月で入れ替わる。}
+7 月前半の平均落下点は東へ \SI{9}{\kilo\metre} しか動かず、陸の上になる。
+7 月後半は逆に西南西へ \SI{42}{\kilo\metre} 動き、豊後水道の南部の海上になる。
+どちらも平均落下点が打ち上げ地点に近いのは、
+上で述べたとおり東向きの日と西向きの日が打ち消し合った結果である。
+1 回ごとの飛行距離は \SIrange{53}{59}{\kilo\metre} あり、
+p90 では \SIrange{88}{96}{\kilo\metre} になる。
+
+\begin{whybox}{北海道の VOISING と比べると}
+VOISING は夏に岸から \SIrange{2}{4}{\kilo\metre}、他の季節は \SIrange{55}{80}{\kilo\metre} 沖に落ちる
+（表\ref{tab:voising-offshore}）。
+愛南町の冬の沖合いの距離（\SIrange{54}{59}{\kilo\metre}）は北海道と同じくらいだが、
+春と秋は \SIrange{15}{32}{\kilo\metre} と北海道より岸に近い。
+土佐湾の沖や室戸岬の南に落ちるためである。
+夏は北海道が「岸のすぐそばの海」なのに対し、愛南町は
+\textbf{陸にも海にも落ちうる}。回収の手配を両方に備える必要がある。
+
+なお、この表は代表 1 地点の値である。
+\texttt{out/csv/region\_sites\_ehime.csv} に「愛媛・高知」の 8 地点と
+最寄り格子までの距離（\SIrange{12}{26}{\kilo\metre}）を出してあるので、
+別の地点で見たい場合は \texttt{csv\_out.REFERENCE\_SITE} を変えて再実行すればよい。
+\end{whybox}
+
+\subsection{日変化と鉛直シアー}
+
+\input{sections/_fig_e_f8}
+\input{sections/_fig_e_f9}
+
+夜と昼の平均風速の差は最大 \SI{0.9}{\metre\per\second} で、
+和歌山と同じく高度 \SI{1}{\kilo\metre} 付近（夜のほうが強い）に山がある。
+
+鉛直シアーの最大は \SI{9.4}{(\metre\per\second)\per\kilo\metre}
+（12 月後半、高度 \SI{16.3}{\kilo\metre}）で、
+場所も大きさも和歌山（\SI{9.3}{(\metre\per\second)\per\kilo\metre}）とほぼ同じ。
+冬の亜熱帯ジェットの真上で風が急に弱まるところである。
+
+\subsection{既存シミュレータの ISA 仮定}
+
+\input{sections/_fig_e_f10}
+
+ISA からのずれは最大 \SI{790}{\metre}（夏）、冬は \SI{269}{\metre} である。
+和歌山（夏 \SI{787}{\metre}）とほぼ同じで、北海道（夏 \SI{1036}{\metre}）より小さい。

@@ -1,0 +1,13 @@
+candidate,osm_type,osm_id,name,lat,lon,area_m2,dist_power_m,dist_building_m,dist_from_candidate_km,osm_url
+壱岐,way,730644137,,33.824996,129.703615,10620.7,5784.1,72.2,5.227,https://www.openstreetmap.org/way/730644137
+壱岐,way,1456034145,,33.757091,129.788399,140165.3,3419.8,61.0,6.816,https://www.openstreetmap.org/way/1456034145
+松山平野,way,550528217,,33.79446,132.8066,20223.6,2437.5,350.6,6.088,https://www.openstreetmap.org/way/550528217
+松山平野,way,773002400,久万の台緑地公園,33.857373,132.737125,15218.0,214.0,233.1,3.599,https://www.openstreetmap.org/way/773002400
+松山平野,way,557691447,松山発電所記念公園,33.90101,132.727542,55716.6,311.1,184.7,7.836,https://www.openstreetmap.org/way/557691447
+松山平野,way,388245028,,33.815328,132.779937,10504.3,479.6,176.8,2.893,https://www.openstreetmap.org/way/388245028
+松山平野,way,773002078,大可賀釣り公園,33.850978,132.696596,17768.9,1273.7,165.0,6.888,https://www.openstreetmap.org/way/773002078
+大分,way,550595727,鶴崎スポーツパーク,33.225515,131.691779,15826.6,1509.6,601.8,7.774,https://www.openstreetmap.org/way/550595727
+大分,way,1080237722,,33.189683,131.65816,11015.3,1337.1,530.2,7.167,https://www.openstreetmap.org/way/1080237722
+大分,way,623063004,,33.229128,131.563818,10549.7,980.7,450.1,4.462,https://www.openstreetmap.org/way/623063004
+大分,way,623063002,,33.229281,131.563502,33377.0,1011.0,424.6,4.486,https://www.openstreetmap.org/way/623063002
+大分,way,499596758,,33.211329,131.572546,10863.0,1145.4,413.6,4.722,https://www.openstreetmap.org/way/499596758

@@ -1,0 +1,18 @@
+# The database is a release artefact, not repository content: it is large and
+# it carries CC BY-NC-SA 4.0, which is not this repository's licence.
+*.duckdb
+*.duckdb.wal
+*.LICENSE.md
+_staging/
+check/
+
+__pycache__/
+*.pyc
+
+# Sphinx output. The PDF is built from the database, which is not in git
+# either, so a clean checkout cannot reproduce it without a build.
+docs/_build/
+docs/japan-wind-duckdb.pdf
+
+# Figures are drawn from the database by docs/make_figures.py.
+docs/_figures/

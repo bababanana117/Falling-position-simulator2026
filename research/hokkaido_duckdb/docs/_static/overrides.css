@@ -1,0 +1,7 @@
+/* Japanese has no inter-word spaces: long identifiers in running text must be
+   allowed to wrap, or they run past the margin. */
+code.literal { overflow-wrap: anywhere; }
+/* The schema chapter's tables are wide; let them scroll rather than shrink
+   the font to unreadability. */
+div.schema-table table { display: block; overflow-x: auto; }
+table.docutils td, table.docutils th { vertical-align: top; }

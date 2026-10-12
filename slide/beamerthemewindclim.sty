@@ -1,0 +1,275 @@
+% beamerthemewindclim.sty -- white, minimal, 16:9 theme for the JRA-3Q talk.
+%
+% Design values come from slide/design-guidelines.md: assertion headlines in
+% Heavy weight, body 12 pt, sources 9 pt grey, one blue and one vermilion
+% accent (Okabe-Ito), no navigation, no decoration.
+%
+% Fonts are loaded by file name from TeX Live so the build does not depend on
+% the luaotfload name database. Japanese is HaranoAji Gothic (4 weights),
+% Latin and digits are Fira Sans, maths is Fira Math.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{beamerthemewindclim}[2026/09/19 windclim minimal 16:9 theme]
+\mode<presentation>
+
+% ---------------------------------------------------------------- packages
+% Order matters: luatexja-fontspec loads fontspec; unicode-math and
+% fontawesome5 must come after fontspec.
+\RequirePackage{luatexja}
+\RequirePackage[match]{luatexja-fontspec}
+\RequirePackage{unicode-math}
+\RequirePackage{etoolbox}
+\RequirePackage{xcolor}
+\RequirePackage{graphicx}
+\RequirePackage{tikz}
+\usetikzlibrary{chains,positioning,arrows.meta,calc,shapes.misc}
+\RequirePackage{tcolorbox}
+\tcbuselibrary{skins,raster}
+\RequirePackage{fontawesome5}
+\RequirePackage{siunitx}
+\RequirePackage{booktabs}
+
+% ------------------------------------------------------------------- fonts
+\usefonttheme{professionalfonts}
+\defaultfontfeatures{Ligatures=TeX}
+\setsansfont[Extension=.otf, UprightFont=*-Regular, BoldFont=*-Bold,
+             ItalicFont=*-Italic, BoldItalicFont=*-BoldItalic, Numbers=Lining]{FiraSans}
+\setmainfont[Extension=.otf, UprightFont=*-Regular, BoldFont=*-Bold,
+             ItalicFont=*-Italic, BoldItalicFont=*-BoldItalic, Numbers=Lining]{FiraSans}
+\setmonofont[Extension=.otf, UprightFont=*-Regular, BoldFont=*-Bold]{FiraMono}
+\setmathfont{FiraMath-Regular.otf}
+\setsansjfont[Extension=.otf, UprightFont=*-Regular, BoldFont=*-Bold]{HaranoAjiGothic}
+\setmainjfont[Extension=.otf, UprightFont=*-Regular, BoldFont=*-Bold]{HaranoAjiGothic}
+% Beamer calls \normalfont constantly; without this every one of them would
+% drop Japanese back to Mincho.
+\renewcommand{\kanjifamilydefault}{\gtdefault}
+\newfontfamily\latinheavy[Extension=.otf, UprightFont=*-Heavy, BoldFont=*-Heavy, Numbers=Lining]{FiraSans}
+\newfontfamily\latinmedium[Extension=.otf, UprightFont=*-Medium, BoldFont=*-Bold, Numbers=Lining]{FiraSans}
+\newjfontfamily\jaheavy[Extension=.otf, UprightFont=*-Heavy, BoldFont=*-Heavy]{HaranoAjiGothic}
+\newjfontfamily\jamedium[Extension=.otf, UprightFont=*-Medium, BoldFont=*-Bold]{HaranoAjiGothic}
+\newcommand{\heavyfont}{\latinheavy\jaheavy}
+\newcommand{\mediumfont}{\latinmedium\jamedium}
+% Greek and Cyrillic set in Fira, not in the Japanese font. Range 3 (general
+% punctuation) stays Japanese so that arrows and reference marks keep working.
+\ltjsetparameter{jacharrange={-2}}
+
+% ----------------------------------------------------------------- palette
+\definecolor{wcText}{HTML}{1A1A1A}
+\definecolor{wcSecondary}{HTML}{4B5563}
+\definecolor{wcCite}{HTML}{6B7280}
+\definecolor{wcMuted}{HTML}{9CA3AF}
+\definecolor{wcRule}{HTML}{E5E7EB}
+\definecolor{wcBlue}{HTML}{0072B2}
+\definecolor{wcOrange}{HTML}{D55E00}
+\definecolor{wcPale}{HTML}{E3EEF8}
+\definecolor{wcGrey}{HTML}{F3F4F6}
+
+\setbeamercolor{normal text}{fg=wcText,bg=white}
+\setbeamercolor{background canvas}{bg=white}
+\setbeamercolor{frametitle}{fg=wcText,bg=}
+\setbeamercolor{title}{fg=wcText}
+\setbeamercolor{subtitle}{fg=wcSecondary}
+\setbeamercolor{author}{fg=wcSecondary}
+\setbeamercolor{date}{fg=wcCite}
+\setbeamercolor{structure}{fg=wcBlue}
+\setbeamercolor{alerted text}{fg=wcOrange}
+\setbeamercolor{itemize item}{fg=wcBlue}
+\setbeamercolor{itemize subitem}{fg=wcMuted}
+\setbeamercolor{enumerate item}{fg=wcBlue}
+\setbeamercolor{caption name}{fg=wcSecondary}
+\setbeamercolor{page number in head/foot}{fg=wcMuted}
+\setbeamercolor{source}{fg=wcCite}
+\setbeamercolor{block title}{fg=wcText,bg=wcPale}
+\setbeamercolor{block body}{fg=wcText,bg=wcPale!40}
+
+% ------------------------------------------------------------------- sizes
+% Page is 160 x 90 mm; 1 pt here is about 2.1 pt on a 13.33 in PowerPoint slide.
+\setbeamerfont{frametitle}{size=\fontsize{17}{20.5}}
+\setbeamerfont{title}{size=\fontsize{26}{32}}
+\setbeamerfont{subtitle}{size=\fontsize{14}{18}}
+\setbeamerfont{author}{size=\fontsize{13}{16}}
+\setbeamerfont{date}{size=\fontsize{11}{13}}
+\setbeamerfont{caption}{size=\fontsize{9}{11}}
+\setbeamerfont{footnote}{size=\fontsize{8.5}{10}}
+\setbeamerfont{page number in head/foot}{size=\fontsize{8.5}{10}}
+\setbeamerfont{source}{size=\fontsize{9}{11}}
+\setbeamersize{text margin left=9mm,text margin right=9mm}
+
+% --------------------------------------------------------------- templates
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{headline}{}
+\setbeamertemplate{sidebar right}{}
+\setbeamertemplate{itemize item}{\raisebox{0.3ex}{\textcolor{wcBlue}{\rule{0.8ex}{0.8ex}}}}
+\setbeamertemplate{itemize subitem}{\textcolor{wcMuted}{--}}
+\setbeamertemplate{caption}{\usebeamerfont{caption}\usebeamercolor[fg]{caption name}\insertcaption\par}
+\setlength{\leftmargini}{1.4em}
+
+% Frame title: Heavy, left, with a thick blue bar at its left edge that spans
+% the whole title box (one or two lines). \parbox[t] puts the baseline on the
+% first line, so height + depth of the saved box is the full extent.
+% A frame subtitle, when given (\begin{frame}{title}{kicker}), is printed as a
+% small blue kicker above the title: the section the slide belongs to.
+\newsavebox{\wc@titlebox}
+% The kicker is pinned to the top-right corner so it costs no height.
+% The kicker's zero-size picture lives inside the title's own hbox, so that
+% no interline glue is inserted between them and every frame's title sits
+% at the same height whether or not it has a kicker.
+\setbeamertemplate{frametitle}{%
+  \vskip 4.5mm
+  \savebox{\wc@titlebox}{\parbox[t]{\dimexpr\textwidth-24mm\relax}{%
+    \raggedright\usebeamerfont{frametitle}\heavyfont\insertframetitle\strut\par}}%
+  \hbox{%
+    \ifx\insertframesubtitle\@empty\else
+      \begin{tikzpicture}[remember picture,overlay]
+        \node[anchor=north east,font=\mediumfont\fontsize{8.5}{10}\selectfont,text=wcBlue]
+          at ([xshift=-9mm,yshift=-2.2mm]current page.north east) {\insertframesubtitle};
+      \end{tikzpicture}\fi
+    {\color{wcBlue}\vrule width 1.5mm height \ht\wc@titlebox depth \dp\wc@titlebox}%
+    \hskip 3.2mm\usebox{\wc@titlebox}}%
+  \vskip 1.4mm}
+
+% Footline: source line bottom-left (set with \srcline inside the frame),
+% page number bottom-right. Widths sum to less than the paper, so the box
+% can never be overfull.
+\newcommand{\wc@source}{}
+\newcommand{\srcline}[1]{\gdef\wc@source{#1}}
+\AddToHook{env/frame/before}{\global\let\wc@source\@empty}
+\setbeamertemplate{footline}{%
+  \leavevmode\hbox to \paperwidth{%
+    \hskip 9mm
+    \begin{beamercolorbox}[wd=0.72\paperwidth,ht=2.4ex,dp=1ex,left]{source}
+      \usebeamerfont{source}\wc@source
+    \end{beamercolorbox}\hfil
+    \begin{beamercolorbox}[wd=0.12\paperwidth,ht=2.4ex,dp=1ex,right]{page number in head/foot}
+      \usebeamerfont{page number in head/foot}\insertframenumber
+    \end{beamercolorbox}\hskip 9mm}%
+  \vskip 3mm}
+
+% Title page: full-bleed background image, text block anchored top-left in
+% the image's clean area (left 55 %, top 65 % are blank).
+\setbeamertemplate{title page}{%
+  \begin{tikzpicture}[remember picture,overlay]
+    \node[anchor=north west,text width=0.56\paperwidth,align=left,inner sep=0pt]
+      at ([xshift=12mm,yshift=-16mm]current page.north west) {%
+        {\usebeamerfont{title}\usebeamercolor[fg]{title}\heavyfont\inserttitle\par}%
+        \ifx\insertsubtitle\@empty\else\vskip 3mm
+          {\usebeamerfont{subtitle}\usebeamercolor[fg]{subtitle}\mediumfont\insertsubtitle\par}\fi
+        \vskip 10mm
+        {\usebeamerfont{author}\usebeamercolor[fg]{author}\mediumfont\insertauthor\par}\vskip 1.5mm
+        {\usebeamerfont{date}\usebeamercolor[fg]{date}\insertdate\par}};
+  \end{tikzpicture}}
+\newcommand{\titleframe}{{%
+  \usebackgroundtemplate{\includegraphics[width=\paperwidth,height=\paperheight]{title-slide-background.png}}%
+  \begin{frame}[plain,noframenumbering]\titlepage\end{frame}}}
+
+% ----------------------------------------------------------- layout macros
+% Inline emphasis: \kw{keyword} blue bold, \warn{word} vermilion bold,
+% \sub{...} secondary small text, \src{Key+YY} grey citation.
+\newcommand{\kw}[1]{{\color{wcBlue}\bfseries #1}}
+\newcommand{\warn}[1]{{\color{wcOrange}\bfseries #1}}
+\newcommand{\sub}[1]{{\fontsize{10.5}{13}\selectfont\color{wcSecondary}#1}}
+
+% \bigassert[sub-line]{one-sentence assertion} -- a statement slide body.
+\NewDocumentCommand\bigassert{O{} m}{%
+  \vfill\begin{center}\parbox{0.86\textwidth}{\raggedright
+    {\heavyfont\fontsize{26}{33}\selectfont\color{wcText}#2\par}%
+    \ifblank{#1}{}{\vskip 4mm{\fontsize{13}{17}\selectfont\color{wcSecondary}#1\par}}}%
+  \end{center}\vfill}
+
+% \bignum[colour]{45}{\%}{label} -- a big number with unit and caption.
+\NewDocumentCommand\bignum{O{wcBlue} m m m}{%
+  \begin{minipage}[t]{\linewidth}\raggedright
+    {\heavyfont\fontsize{48}{52}\selectfont\color{#1}#2}%
+    {\mediumfont\fontsize{18}{22}\selectfont\color{#1}\,#3}\par\vskip 1.2mm
+    {\mediumfont\fontsize{11.5}{14}\selectfont\color{wcSecondary}#4\par}
+  \end{minipage}}
+
+% \midnum[colour]{185}{km}{label} -- a smaller big number for stacks of several.
+\NewDocumentCommand\midnum{O{wcBlue} m m m}{%
+  \begin{minipage}[t]{\linewidth}\raggedright
+    {\heavyfont\fontsize{26}{29}\selectfont\color{#1}#2}%
+    {\mediumfont\fontsize{13}{15}\selectfont\color{#1}\,#3}\par\vskip 0.4mm
+    {\fontsize{10}{12.5}\selectfont\color{wcSecondary}#4\par}
+  \end{minipage}}
+% \lead{sentence} -- the assertion under a topic-style title (slides 2-4 keep
+% the titles the brief asked for, so the claim goes here).
+\newcommand{\lead}[1]{{\mediumfont\fontsize{12.5}{15}\selectfont\color{wcText}#1\par}\vskip 1.5mm}
+
+% \minicard[colour]{fa-icon}{headline}{caption} -- one-line headline with the
+% icon in front, for rows of four or five where a full card is too tall.
+\NewDocumentCommand\minicard{O{wcBlue} m m m}{%
+  \begin{wccard}\centering
+    {\color{#1}\fontsize{12}{14}\selectfont\faIcon{#2}}\hspace{1.2mm}%
+    {\heavyfont\fontsize{15}{18}\selectfont\color{wcText}#3}\par\vskip 1mm
+    \cardrule\vskip 1.2mm
+    {\fontsize{10}{12}\selectfont\color{wcSecondary}#4\par}
+  \end{wccard}}
+
+% Cards: \begin{cards}[3] \card[colour]{fa-icon}{headline}{caption} ... \end{cards}
+% A card has a centred headline over a thin rule, then its body.
+\newtcolorbox{wccard}{enhanced,colback=white,colframe=wcMuted,boxrule=0.7pt,arc=2.2mm,
+  left=3mm,right=3mm,top=2.8mm,bottom=2.8mm,boxsep=0pt}
+\newtcolorbox{wccardpale}{enhanced,colback=wcPale,colframe=wcPale,boxrule=0pt,arc=2.2mm,
+  left=3.5mm,right=3.5mm,top=2.8mm,bottom=2.8mm,boxsep=0pt}
+\newcommand{\cardrule}{{\color{wcMuted}\rule{0.86\linewidth}{0.5pt}}\par}
+\NewDocumentCommand\card{O{wcBlue} m m m}{%
+  \begin{wccard}\centering
+    {\color{#1}\fontsize{16}{18}\selectfont\faIcon{#2}\par}\vskip 1.2mm
+    {\heavyfont\fontsize{18}{21}\selectfont\color{wcText}#3\par}\vskip 1.2mm
+    \cardrule\vskip 1.4mm
+    {\fontsize{10}{12.5}\selectfont\color{wcSecondary}#4\par}
+  \end{wccard}}
+% \textcard[colour]{headline}{body} -- a card with a text headline and a left-set body.
+\NewDocumentCommand\textcard{O{wcBlue} m m}{%
+  \begin{wccard}
+    {\centering\mediumfont\fontsize{13}{16}\selectfont\color{#1}#2\par}\vskip 1.2mm
+    {\centering\cardrule}\vskip 1.6mm
+    {\raggedright\fontsize{11}{14.5}\selectfont\color{wcText}#3\par}
+  \end{wccard}}
+% \palecard{headline}{body} -- pale fill, no frame, for summaries.
+\NewDocumentCommand\palecard{O{wcBlue} m m}{%
+  \begin{wccardpale}
+    {\mediumfont\fontsize{13}{16}\selectfont\color{#1}#2\par}\vskip 1.2mm
+    {\raggedright\fontsize{11}{14.5}\selectfont\color{wcText}#3\par}
+  \end{wccardpale}}
+\NewDocumentEnvironment{cards}{O{3}}
+  {\begin{tcbraster}[raster columns=#1,raster equal height,raster column skip=4mm,
+     raster row skip=4mm,raster valign=top]}
+  {\end{tcbraster}}
+
+% \flow{A,B,C} -- boxes joined by arrows. \flow[going below]{...} stacks them.
+\tikzset{
+  flowbox/.style={draw=wcRule,line width=0.6pt,fill=wcPale,rounded corners=1.5mm,
+    minimum height=9mm,inner xsep=3.5mm,inner ysep=2mm,text=wcText,align=center,
+    font=\mediumfont\fontsize{12}{14}\selectfont},
+  flowarrow/.style={-{Latex[length=2.5mm,width=2mm]},wcSecondary,line width=0.8pt},
+  schemabox/.style={draw=wcRule,line width=0.6pt,fill=white,rounded corners=1.5mm,
+    inner sep=2.5mm,text=wcText,align=left,font=\fontsize{11}{14}\selectfont}}
+\NewDocumentCommand\flow{O{going right} m}{%
+  \begin{tikzpicture}[start chain=#1,node distance=5mm]
+    \foreach \t in {#2}{\node[flowbox,on chain,join=by flowarrow]{\t};}
+  \end{tikzpicture}}
+
+% Citations: \defref{Key+YY}{full reference} in refs.tex; \src{Key+YY} inline;
+% \printrefs lists only the keys that were cited (\printrefs* lists all).
+\newcommand{\wc@refkeys}{}\newcommand{\wc@usedrefs}{}
+\NewDocumentCommand\defref{m m}{\csgdef{wc@ref@#1}{#2}\listgadd\wc@refkeys{#1}}
+\NewDocumentCommand\src{m}{%
+  \ifcsname wc@ref@#1\endcsname\else
+    \PackageWarning{beamerthemewindclim}{undefined source key '#1'}\fi
+  \ifinlist{#1}{\wc@usedrefs}{}{\listgadd\wc@usedrefs{#1}}%
+  {\color{wcCite}\fontsize{9}{11}\selectfont(#1)}}
+\newcommand{\wc@printref}[1]{%
+  \noindent{\color{wcCite}(#1)}\hspace{0.8em}\csuse{wc@ref@#1}\par\vskip 0.5mm}
+\NewDocumentCommand\printrefs{s}{\fontsize{8.5}{10.5}\selectfont\raggedright\sloppy
+  \IfBooleanTF{#1}{\forlistloop{\wc@printref}{\wc@refkeys}}{\forlistloop{\wc@printref}{\wc@usedrefs}}}
+
+% \icon[colour]{name} -- a Font Awesome 5 icon.
+\NewDocumentCommand\icon{O{wcBlue} m}{\textcolor{#1}{\faIcon{#2}}}
+
+% siunitx: numbers in the surrounding font; CJK units stay outside (\num{137} 分).
+\sisetup{detect-all,per-mode=symbol,range-phrase={--},range-units=single}
+\newcommand{\ms}{\si{\metre\per\second}}
+\newcommand{\hpa}{\si{\hecto\pascal}}
+\newcommand{\km}{\si{\kilo\metre}}
+\hypersetup{colorlinks=true,linkcolor=wcText,urlcolor=wcBlue,citecolor=wcBlue}
+\mode<all>

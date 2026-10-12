@@ -1,0 +1,589 @@
+\clearpage
+\appendix
+
+% Number the appendices "付録A" rather than a bare "A", and keep the
+% subsections as A.1 so they stay short. Because this goes through
+% \thesection, a \ref to an appendix prints "付録E" on its own and the
+% citing sentence does not add the word itself.
+\renewcommand{\thesection}{付録\Alph{section}}
+\renewcommand{\thesubsection}{\Alph{section}.\arabic{subsection}}
+\addtocontents{toc}{\protect\appendixtocwidth}
+
+\section{出力ファイル}
+
+\begin{longtable}{lp{0.55\linewidth}}
+\toprule
+場所 & 内容 \\
+\midrule
+\endhead
+\texttt{out/netcdf/} & 基準となる出力。CF-1.10 準拠の NetCDF4。次元は (month, bin, level, lat, lon)。
+  モーメント（$\bar u$, $\bar v$, $\sigma_u^2$, $\sigma_v^2$, $\sigma_{uv}$）と
+  分位点・標本数・高度を保持する。 \\
+\texttt{out/parquet/} & 同じ内容の long format。region と month で分割。
+  モーメントに加えて風向・楕円・シアーなど導出量も入れてある。 \\
+\texttt{out/csv/} & 厳選した 6 表（後述）。 \\
+\texttt{out/figures/} & 本報告の図。PNG（確認用）と PDF（本報告用）。 \\
+\texttt{data/raw/} & GDEX から取得した切り出し済みキャッシュと、
+  ファイルごとの検証結果を記録した JSON。 \\
+\bottomrule
+\end{longtable}
+
+\section{CSV 表の一覧}
+
+\begin{longtable}{lp{0.6\linewidth}}
+\toprule
+ファイル & 内容 \\
+\midrule
+\endhead
+\texttt{bin\_calendar.csv} & 24 ビンの定義と標本数。区切り方の監査用。 \\
+\texttt{region\_grid\_*.csv} & 実際に使った格子点。 \\
+\texttt{region\_sites\_*.csv} & 打ち上げ地点と最寄り格子、そのずれ（km）。 \\
+\texttt{site\_profile\_*.csv} & 代表地点の (月, ビン, 気圧面) プロファイル。 \\
+\texttt{layer\_summary\_*.csv} & 飛行の各段階に対応する 6 層への集約。 \\
+\texttt{best\_launch\_halves\_*.csv} & 明示した目的関数によるビンの順位付け。 \\
+\texttt{data\_inventory.csv} & 取得元ファイルの一覧と検証結果。 \\
+\bottomrule
+\end{longtable}
+
+\texttt{best\_launch\_halves} の順位は\textbf{最適ではなく、明示された 1 つの基準}による。
+すなわち「0--30 km の領域平均風速の鉛直平均が小さい順、同点なら定常度が高い順」である。
+別の基準が欲しければ Parquet から付け直せる。
+
+\section{再現手順}
+
+\codeblock
+\begin{lstlisting}
+conda env create -f environment.yml
+conda activate jra3q
+cd research
+
+python -m windclim.cli fetch --years 2016-2025     # 約2.5時間、中断可
+for r in hokkaido wakayama ehime; do
+  python -m windclim.cli all --region $r
+  python -m windclim.cli validate --region $r   # 第 3b 章
+  python -m windclim.cli fidelity --region $r   # 第 6b 章
+done
+python -m windclim.cli compare                  # 3 領域がそろってから
+
+# 付録の 7 日ビン版（本文と別のファイルに書き出される）
+python -m windclim.cli all --region wakayama --scheme week
+python -m windclim.cli all --region hokkaido --scheme week
+
+cd report && make
+\end{lstlisting}
+
+\texttt{fetch} は中断しても安全で、再実行すれば途中から続く。
+オフラインのテストは \texttt{pytest}、
+GDEX の仕様が変わっていないかの確認は \texttt{pytest -m network} で走る。
+
+\section{和歌山の冬：風速の分布と、そこから出る落下点の散らばり}
+\label{sec:appendix-winter}
+
+第 \ref{sec:wakayama} 章で、和歌山の冬は\textbf{風向が安定していて風速がばらつく}
+という結果になった。ここではその「ばらつく」を分布として推定し、
+その分布から落下点を実際に撒いてみる。
+
+打ち上げ地点は\textbf{和歌山領域の中心格子（「和歌山中央」）}1 点に固定する。
+\ang{33.902}N, \ang{135.375}E で、第 \ref{sec:wakayama} 章の各図が扱う
+領域と同じ格子である。
+用いるのは 12・1・2 月の全解析 \num{3612} 個。
+
+\subsection{風速の分布は一様ではないし、1 つの形でもない}
+
+\input{sections/_fig_w_a1}
+
+38 の気圧面それぞれについて、正規分布・Weibull 分布・一様分布を当てはめ、
+AIC で比べた。
+
+\begin{table}[H]
+\centering
+\caption{和歌山の冬、代表的な気圧面での当てはめ。
+$\Delta$AIC は採用した分布との差で、大きいほどその分布が劣る。
+風向 SD は比較のために併記した。}
+\label{tab:winter-fit}
+\sisetup{table-format=2.2}
+\begin{tabular}{@{}llS[table-format=1.2]S[table-format=2.1]S[table-format=2.1]S[table-format=4.0]S[table-format=2.1]@{}}
+\toprule
+気圧面 & 採用 & {KS} & {平均 [\si{\metre\per\second}]} & {SD}
+       & {一様との $\Delta$AIC} & {風向 SD [度]} \\
+\midrule
+\SI{850}{\hecto\pascal} & 正規    & 0.01 & 10.7 & 4.2  & 3954 & 44.2 \\
+\SI{500}{\hecto\pascal} & 正規    & 0.01 & 34.9 & 10.5 & 3981 & 16.8 \\
+\SI{200}{\hecto\pascal} & Weibull & 0.03 & 75.9 & 14.3 & 2421 & 11.5 \\
+\SI{100}{\hecto\pascal} & 正規    & 0.01 & 48.9 & 8.5  & 3023 & 9.1 \\
+\SI{30}{\hecto\pascal}  & Weibull & 0.03 & 9.5  & 6.4  & 3502 & 58.3 \\
+\SI{10}{\hecto\pascal}  & Weibull & 0.02 & 12.1 & 8.6  & 4672 & 96.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{一様分布は 38 面すべてで負ける。} $\Delta$AIC は最小でも \num{1878}、
+最大 \num{4833} である。
+「風速がばらばら」という言い方は、中心のない一様な散らばりを思わせるが、
+実際には\textbf{はっきりした中心と、行儀のよい裾}を持っている。
+
+形は 1 つではない。38 面のうち 16 面が正規、22 面が Weibull だった。
+分かれ方には理由がある。
+
+\begin{whybox}{なぜ高度で形が変わるのか}
+\SI{500}{\hecto\pascal} や \SI{850}{\hecto\pascal} では、平均風速が
+標準偏差の 3--8 倍ある。風速が 0 に近づくことはまず無いので、
+下限 0 という制約が問題にならず、正規分布でよく合う。
+
+\SI{10}{\hecto\pascal} や \SI{30}{\hecto\pascal} では平均が \SIrange{9}{12}{\metre\per\second}、
+SD が \SIrange{6}{9}{\metre\per\second} で、変動係数が 0.7 近い。
+風速は負になれないので分布は 0 で切られ、右に裾を引く。
+これが Weibull の形である。
+
+\SI{200}{\hecto\pascal} だけは別の理由で Weibull が勝つ。
+ここは平均 \SI{75.9}{\metre\per\second} と速く 0 からは遠いが、
+分布が\textbf{左}に歪んでいる（歪度 $-0.44$）。
+ジェットの強さに上限があるためで、Weibull の形状パラメータが大きくなると
+左に歪んだ形も表せる。裾の重さを合わせた結果であって、
+\SI{10}{\hecto\pascal} と同じ理由ではない。
+\end{whybox}
+
+\subsection{層を独立に振ってはいけない}
+
+分布が決まったので、そこから風速のプロファイルを撒いて飛ばす。
+ここで最初の注意点がある。
+
+各気圧面を\textbf{独立に}引くのがいちばん単純なやり方だが、それは間違いである。
+飛行は全層を足し合わせるので、独立な誤差は互いに打ち消し合い、
+落下点の雲が実際よりずっと小さく出る。
+実際の風はそうなっていない。
+\SI{200}{\hecto\pascal} と \SI{100}{\hecto\pascal} の風速は相関 0.64 で連動する。
+
+そこで観測された順位相関からガウス・コピュラを作り、
+各面の周辺分布は当てはめたまま、層どうしの連動を保って撒いた。
+
+コピュラが何をしているかを書いておく。
+やりたいことは 2 つあり、そのままでは両立しない。
+ひとつは\textbf{各面の分布の形を守ること}である。
+前項のとおり、ある面は正規分布、別の面は Weibull 分布が当てはまっており、
+面ごとに形が違う。
+もうひとつは\textbf{層どうしの連動を入れること}である。
+
+単純に 38 次元の多変量正規分布から引けば連動は入る。
+ところがその場合、どの面も正規分布になってしまう。
+Weibull が当てはまった面の形が壊れるので、これは使えない。
+
+コピュラは、この 2 つを\textbf{分けて}扱う道具である。
+連動だけを正規分布で作り、
+分布の形はあとから面ごとに与え直す。
+3 段階で書くと次のようになる。
+
+\begin{equation*}
+\underbrace{\vec{z} \sim \mathcal{N}(\vec{0},\, R)}_{\text{(1) 連動だけを作る}}
+\quad\Longrightarrow\quad
+\underbrace{u_j = \Phi(z_j)}_{\text{(2) 一様}[0,1]\text{に均す}}
+\quad\Longrightarrow\quad
+\underbrace{V_j = F_j^{-1}(u_j)}_{\text{(3) その面の分布に戻す}}
+\end{equation*}
+
+$j$ は気圧面の番号（$j = 1, \dots, 38$）、
+$\Phi$ は標準正規分布の累積分布関数、
+$F_j$ は $j$ 面に当てはめた分布（正規または Weibull）、
+$F_j^{-1}$ はその分位点関数である。
+
+段階ごとに見る。
+(1) では相関行列 $R$ を持つ正規乱数を引く。
+この時点で持っている情報は\textbf{層どうしの連動だけ}で、
+分布の形はまだ決めていない。
+(2) で $\Phi$ を通すと、$u_j$ は各成分が $[0, 1]$ 上の一様分布になる。
+$\Phi$ は単調増加なので、ここで\textbf{連動は壊れない}。
+形の情報だけが抜けて、順位の情報だけが残る。
+(3) で各面の分位点関数を通すと、$V_j$ はその面に当てはめた分布に\textbf{厳密に}従う。
+$F_j^{-1}$ も単調増加なので、ここでも連動は壊れない。
+
+つまり (2) と (3) はどちらも単調変換で、順位を入れ替えない。
+連動が (1) から (3) まで素通りし、分布の形だけが (3) で入る。
+これが「周辺分布は当てはめたまま、連動を保つ」の中身である。
+
+相関行列 $R$ には、観測の相関をそのまま入れるのではなく、
+一段変換したものを入れる。
+
+\begin{equation}
+\rho^{(R)}_{jk} = 2 \sin\!\left( \frac{\pi}{6} \rho^{\mathrm{S}}_{jk} \right)
+\label{eq:copula-rho}
+\end{equation}
+
+$\rho^{\mathrm{S}}_{jk}$ は観測から測った $j$ 面と $k$ 面の\textbf{順位相関}
+（Spearman）である。
+ここで Pearson ではなく順位相関を使うのには理由がある。
+順位相関は単調変換で変わらない量なので、
+(2) と (3) を通り抜けても値が保たれる。
+一方 Pearson 相関は (3) の $F_j^{-1}$ で変わってしまうので、
+入れた値と出てくる値が一致しない。
+
+式 \eqref{eq:copula-rho} は、
+「(1) に $\rho^{(R)}$ を入れると (3) の出力の順位相関が
+$\rho^{\mathrm{S}}$ になる」という関係である。
+ガウス・コピュラではこれが閉じた形で書ける。
+$\rho^{\mathrm{S}} = 0.64$ なら $\rho^{(R)} = 0.66$ で、
+差は小さいが、1 行で正確にできるものを近似で済ませる理由もない。
+
+最後に 1 つ処理がいる。
+$R$ は面のペアごとに別々に測った値を並べたものなので、
+相関行列として成立しているとは限らない（正定値でないことがある）。
+そのままでは (1) の乱数生成（Cholesky 分解）が失敗するので、
+固有値を下から $10^{-8}$ で押さえて最も近い正定値行列に直し、
+対角を 1 に直してから使う。
+
+\begin{whybox}{ガウス・コピュラで足りない可能性がある点}
+ガウス・コピュラは層間の依存を\textbf{相関行列だけ}で表す。
+これで表せないのは\textbf{裾どうしの連動}である。
+
+具体的には、「強風の日は全層いっせいに極端に強い」という性質を考える。
+正規分布の連動は、中央付近では強く、裾へ行くほど弱くなる。
+したがって実際の大気で裾が中央より強く連動していると、
+このモデルは極端な日を\textbf{過小に}出す。
+
+落下点の分布は観測をよく再現しているので大きな誤りは無いはずだが、
+裾の連動そのものを確かめたわけではない。
+$t$ コピュラなど裾の連動を持つ族と比べるのが筋だが、本報告では行っていない。
+\end{whybox}
+
+\subsection{比べる 5 つの条件}
+
+以降の図と表には 5 つの条件が出てくる。
+いちばん上が観測そのもので、2 番目がいちばん単純なモデルである。
+そこから下へ、\textbf{モデルに要素を 1 つずつ足していく}。
+したがって下へ行くほど観測に近づくはずである。
+近づかなければ、足した要素に効果がないか、まだ足りない要素が残っている。
+
+\begin{table}[H]
+\centering
+\caption{5 つの条件の中身。同じ列で値が変わっている行が、
+その条件で新しく入った要素である。}
+\label{tab:winter-scenarios}
+\footnotesize
+\begin{tabular}{@{}lllll@{}}
+\toprule
+条件 & 風速 & 風向 & 層間の連動 & 機体諸元 \\
+\midrule
+観測（実プロファイル）
+  & 実測値
+  & 実測値
+  & 実測値（仮定なし）
+  & 固定 \\
+\addlinespace
+風速のみ・層独立
+  & 当てはめた分布
+  & 層ごとの平均に固定
+  & \textbf{なし}
+  & 固定 \\
+風速のみ・鉛直相関あり
+  & 当てはめた分布
+  & 層ごとの平均に固定
+  & \textbf{コピュラ}
+  & 固定 \\
+＋風向のばらつき
+  & 当てはめた分布
+  & \textbf{平均のまわりに散らす}
+  & コピュラ
+  & 固定 \\
+＋機体（\texttt{frontend} 既定）
+  & 当てはめた分布
+  & 平均のまわりに散らす
+  & コピュラ
+  & \textbf{摂動} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+1 つずつ中身を書く。
+
+\paragraph{観測（実プロファイル）。}
+モデルを一切通さない。
+12・1・2 月の解析 \num{3612} 個の $(u, v)$ プロファイルを、
+そのまま 1 本ずつ飛ばしたものである。
+分布の当てはめもコピュラも使っていないので、
+\textbf{これが他の 4 条件の答え合わせになる}。
+モデルの雲がこの雲に重なれば、そのモデルは風の散らばりを再現できている。
+
+\paragraph{風速のみ・層独立。}
+ここからがモデルである。
+各気圧面の風速を、前項で当てはめた分布（正規または Weibull）から引く。
+ただし\textbf{面ごとに独立に}引く。
+風向は各面の平均風向に\textbf{固定}し、散らさない。
+機体諸元も固定する。
+
+つまりこの条件は、
+「各高度の風速がどれくらいばらつくか」だけを知っていて、
+「その高度どうしがどう連動するか」を知らない場合にあたる。
+高度別のヒストグラムだけを見てモンテカルロを組むと、これになる。
+
+\paragraph{風速のみ・鉛直相関あり。}
+1 つ前との違いは\textbf{層間の連動だけ}である。
+周辺分布も、風向を平均に固定することも、機体を固定することも変えていない。
+引き方をコピュラに変えただけで、他は同一の乱数種から引いている。
+
+したがってこの 2 条件の差は、\textbf{鉛直相関を入れたことだけの効果}である。
+
+\paragraph{＋風向のばらつき。}
+風速は 1 つ前と同じ（コピュラつき）まま、
+風向を平均に固定するのをやめる。
+各面の平均風向のまわりに、その面の循環 SD で散らす。
+風向どうしも同じコピュラで連動させる。
+
+この条件が答えるのは、
+「和歌山の冬は風向が安定している」という第 \ref{sec:wakayama} 章の結果を受けて、
+\textbf{では風向を固定してよいのか}という問いである。
+
+\paragraph{＋機体（\texttt{frontend} 既定）。}
+風は 1 つ前と同じまま、機体の諸元を摂動する。
+上昇速度・破裂高度・降下速度を、
+Web アプリのモンテカルロ機能の既定値
+（\texttt{frontend/src/mc/sampling.ts}）と同じ分布・同じ大きさで散らす。
+上昇速度と降下速度は SD \SI{0.5}{\metre\per\second}、
+破裂高度は 5 \% の正規分布である。
+
+これが\textbf{現行の Web アプリが出している散らばりに、
+実際の風のばらつきを足したもの}にあたる。
+アプリ自身は風を摂動しないので、アプリ単体の雲はこれよりずっと小さい。
+
+\begin{whybox}{5 条件すべてに共通して入っていないもの}
+条件ごとの違いは上のとおりだが、\textbf{5 つとも共通に置いている仮定}もある。
+図を読むときはこちらも効く。
+
+\begin{itemize}
+  \item \textbf{打ち上げ地点は 1 点固定}である。
+        「和歌山中央」の \ang{33.902}N, \ang{135.375}E だけを使う。
+        打ち上げ場所の違いによる散らばりは入っていない。
+  \item \textbf{飛行中に風は変わらない。}
+        1 本のプロファイルを飛行全体（約 \num{140} 分）に使い回す。
+        これは現行シミュレータと同じ仮定で、
+        この仮定自体の誤差は第 \ref{sec:fidelity} 章で別に測った。
+  \item \textbf{機体が水平に動いても、参照する風は変わらない。}
+        上と同じ理由で、打ち上げ格子の風だけを使う。
+  \item \textbf{予報誤差は入っていない。}
+        ここで使っているのは再解析、つまり\textbf{後から作った最良推定}である。
+        実運用では打ち上げ前に GFS 予報を使うので、
+        その予報が外れるぶんの誤差がさらに乗る。
+        本報告の手持ちデータでは測れない（第 \ref{sec:limits} 章）。
+\end{itemize}
+
+したがって\textbf{観測の雲でさえ、実際の散らばりの下限である}。
+\end{whybox}
+
+\subsection{結果}
+
+\input{sections/_fig_w_a2}
+\input{sections/_fig_w_a3}
+
+\begin{table}[H]
+\centering
+\caption{落下点の散らばり。★（打ち上げ地点）からの変位で、
+東西が飛行方向、南北がそれと直交する方向にあたる。}
+\label{tab:winter-spread}
+\sisetup{table-format=2.1}
+\begin{tabular}{@{}lSSS[table-format=3.1]S[table-format=3.1]@{}}
+\toprule
+条件 & {東西 SD [\si{\kilo\metre}]} & {南北 SD [\si{\kilo\metre}]}
+     & {距離中央値} & {距離 p90} \\
+\midrule
+観測（実プロファイル）        & 54.5 & 48.6 & 265.8 & 330.9 \\
+\addlinespace
+風速のみ・層独立            & 15.0 & 3.5  & 270.7 & 289.7 \\
+風速のみ・鉛直相関あり        & 49.2 & 5.2  & 270.6 & 332.5 \\
+＋風向のばらつき            & 47.7 & 48.8 & 262.2 & 322.1 \\
+＋機体（\texttt{frontend} 既定） & 52.2 & 49.5 & 262.5 & 332.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+読み取れることが 3 つある。
+
+図\ref{fig:a2-wakayama} が全体像で、図\ref{fig:a3-wakayama} が条件ごとの切り分けである。
+地図のほうは、落下点が\textbf{ほぼすべて海上}で、
+しかも南海トラフから伊豆・小笠原の海山域にかかることを示している。
+和歌山から冬に上げる場合、回収は洋上前提になる。
+
+\paragraph{1. 層を独立に振ると、散らばりが 3 分の 1 になる。}
+東西 SD が \SI{15.0}{\kilo\metre} で、相関を入れた \SI{49.2}{\kilo\metre} の
+3 割にしかならない。
+分布そのものは同じなのに、層のつなぎ方だけでこれだけ変わる。
+モンテカルロで風を摂動するときは、\textbf{層間の相関を入れないと
+不確かさを大幅に過小評価する}。
+
+\paragraph{2. 風向を固定すると、横方向の散らばりがほとんど消える。}
+相関を入れた風速だけのモデルは、東西 SD を \SI{49.2}{\kilo\metre} と
+ほぼ正しく出す（観測 \SI{54.5}{\kilo\metre}）。
+ところが南北 SD は \SI{5.2}{\kilo\metre} で、観測の \SI{48.6}{\kilo\metre} に
+遠く及ばない。
+
+\begin{whybox}{「風向が安定している」と「風向が落下点を動かさない」は別}
+\SI{200}{\hecto\pascal} の定常度は 0.98 で、これは十分に安定と言ってよい値である。
+しかしそれでも円環標準偏差は \ang{11.5} ある。
+
+冬の平均飛行距離は \SI{264}{\kilo\metre}。
+\ang{11.5} の振れは、横方向に
+$264 \times \tan(\ang{11.5}) = \SI{54}{\kilo\metre}$ の散らばりを生む。
+観測の南北 SD \SI{48.6}{\kilo\metre} はこれでほぼ説明がつく。
+
+風向を各面の円環標準偏差で振り直すと、南北 SD は \SI{48.8}{\kilo\metre} になり、
+観測の \SI{48.6}{\kilo\metre} とほぼ一致する（表\ref{tab:winter-spread} の 4 行目）。
+
+\textbf{定常度が高いことは、風向を固定してよい理由にならない。}
+遠くまで飛ぶほど、わずかな角度が大きな距離になる。
+\end{whybox}
+
+\paragraph{3. 機体パラメータの寄与は小さい。}
+\texttt{frontend} のモンテカルロが振っているのは
+上昇速度（$\sigma = \SI{0.5}{\metre\per\second}$）、
+破裂高度（$\sigma = 5\ \%$）、
+降下速度（$\sigma = \SI{0.5}{\metre\per\second}$）の 3 つで、
+\textbf{風は振っていない}（\texttt{frontend/src/mc/sampling.ts}）。
+
+これを風の摂動に上乗せすると、東西 SD が \SI{47.7}{\kilo\metre} から
+\SI{52.2}{\kilo\metre} へ、南北 SD が \SI{48.8}{\kilo\metre} から
+\SI{49.5}{\kilo\metre} へ動くだけである。
+
+\begin{whybox}{現行のモンテカルロは不確かさの大部分を見ていない}
+機体の 3 パラメータだけを振ると、落下点の散らばりは
+東西・南北とも \SI{5}{\kilo\metre} 程度にしかならない。
+実際の散らばりは \SI{50}{\kilo\metre} 級である。
+
+つまり\texttt{frontend} のモンテカルロが示している雲は、
+\textbf{実際に起こりうる散らばりの 1 割程度}である。
+残りは風が決めており、そこは現在まったく摂動されていない。
+
+本節のモデル（表\ref{tab:winter-spread} の 5 行目）は観測をよく再現するので、
+風の摂動を追加する道筋はある。
+必要なのは気圧面ごとの周辺分布と層間の相関行列で、
+どちらも \texttt{out/csv/winter\_speed\_fit\_wakayama.csv} と
+\texttt{windclim.stats.windsample} にある。
+\end{whybox}
+
+\subsection{この付録の限界}
+
+\begin{itemize}
+  \item \textbf{1 格子点、1 季節、1 領域}の結果である。
+        他の季節や北海道では相関構造も分布の形も違う。
+  \item 飛行モデルは\textbf{風を固定する}既存の形（\ref{sec:drift} 節）を使った。
+        \texttt{frontend} と揃えるためで、
+        第 \ref{sec:fidelity} 章で測った固定による誤差（数キロメートル）は
+        ここには入っていない。
+        ただし \SI{50}{\kilo\metre} 級の散らばりに対しては小さい。
+  \item 地図の標高・水深は NOAA NCEI の DEM mosaic サービスから
+        1 度だけ取得してキャッシュしたものである。
+        図を描く処理はネットワークに触れない。
+        このサービスは著作権表示を返さない。
+        米国連邦政府の著作物は通例パブリックドメインであり、
+        NOAA の水深プロダクトもふつうその扱いだが、
+        サービス自身がそう明示しているわけではない。
+        この地図を再配布する場合は各自で条件を確認してほしい。
+  \item このサービスは、要求した緯度経度の箱を\textbf{そのまま返すとは限らない}。
+        箱の縦横比が要求した画像の縦横比と合わない場合、
+        画像に合わせて箱のほうを広げた画像が返ってくる。
+        たとえば \ang{134.5}--\ang{141.5}E を $1440 \times 840$ 画素で要求すると、
+        返るのは \ang{133.29}--\ang{142.71}E である。
+        要求した箱を座標軸に使うと、地図全体がなめらかにずれる。
+        一見もっともらしく見えるので気づきにくい。
+        そこで取得側は先にメタデータ（\texttt{f=json}）を問い合わせ、
+        サービスが申告した範囲をサイドカーに記録し、
+        描画はその範囲だけを使う（\texttt{fetch/terrain.py}）。
+        あわせて、箱と同じ縦横比の画素数を要求することで、
+        要求どおりの箱が返るようにしている。
+  \item 再現は \texttt{python -m windclim.cli winter --region wakayama --fetch-dem}
+        で行う。初回だけ DEM（\SI{7.1}{\mega\byte}）を取得する。
+\end{itemize}
+
+\section{7 日ビンによる旧版の統計}
+\label{sec:appendix-week}
+
+本報告は当初、1 か月を 7 日 $\times$ 4 に分けて集計していた
+（W1 = 1--7 日、W2 = 8--14 日、W3 = 15--21 日、W4 = 22 日--月末）。
+第 \ref{sec:validation} 章の時間解像度の検証を受けて 15 日に改めたが
+（\ref{sec:weeks} 節）、旧版もここに残す。
+
+残す理由は 2 つある。第一に、7 日の結果が 15 日と食い違っていないことを
+読者が自分で確かめられるようにするため。
+第二に、より細かい時期区分が必要な用途のためである。
+7 日は「区別できない範囲」の中にあるので、使うこと自体は妨げられない。
+
+\begin{whybox}{図は保存物ではなく、再生成できる}
+この付録の図は、集計をやり直して作ったものである。
+
+\begin{lstlisting}
+python -m windclim.cli all --region wakayama --scheme week
+python -m windclim.cli all --region hokkaido --scheme week
+\end{lstlisting}
+
+7 日ビンの出力はファイル名に \texttt{\_week} が付き、
+本文の 15 日ビンの出力を上書きしない。
+古い図をそのまま保管しておくのではなくコードで再現できるようにしたのは、
+本報告の図がすべて \texttt{out/figures/} を直接読む設計だからである。
+再生成できない図を 1 枚でも混ぜると、その保証が崩れる。
+\end{whybox}
+
+\subsection{標本数}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{hokkaido_week/F0_sample_counts.pdf}
+\caption[標本数（7 日ビン、北海道）]{7 日ビンでの標本数。
+W1--W3 が各 280 個、W4 だけが 400 個（1 月）や 292 個（2 月）になる。
+15 日ビンではこの凹凸が小さくなる（本文 図\ref{fig:f0-hokkaido}）。}
+\label{fig:app-f0-hokkaido}
+\end{figure}
+
+\subsection{高度 $\times$ 時期の風速}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=1.0\linewidth]{hokkaido_week/F1_alt_half_speed.pdf}
+\caption[高度 $\times$ 週の平均風速（北海道）]{北海道。横軸は 48 ビン。
+本文の図\ref{fig:f1-hokkaido}（24 ビン）と同じ構造が見える。
+細かくしても新しい構造が現れるわけではない、というのが第 \ref{sec:validation} 章の
+結論であり、この 2 枚を並べるとそれが目で確かめられる。}
+\label{fig:app-f1-hokkaido}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=1.0\linewidth]{wakayama_week/F1_alt_half_speed.pdf}
+\caption[高度 $\times$ 週の平均風速（和歌山）]{和歌山。同じく 48 ビン。}
+\label{fig:app-f1-wakayama}
+\end{figure}
+
+\subsection{落下位置}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=1.0\linewidth]{wakayama_week/M5_drift_month_grid.pdf}
+\caption[月別の平均落下位置（7 日ビン、和歌山）]{7 日ビンでの平均落下位置。
+矢印は実寸。本文の図\ref{fig:m5-wakayama} と比べても、
+矢印の向きと長さはほとんど変わらない。}
+\label{fig:app-m5-wakayama}
+\end{figure}
+
+\subsection{旧版の出力ファイル}
+
+\begin{longtable}{@{}p{0.42\linewidth}p{0.52\linewidth}@{}}
+\toprule
+場所 & 内容 \\
+\midrule
+\endhead
+\texttt{out/netcdf/}\newline\texttt{jra3q\_windclim\_*\_week\_v1.nc} & 7 日ビンの統計。
+  次元は本文版と同じ (month, bin, level, lat, lon) で、
+  \texttt{bin} の長さが 4 になる。 \\
+\texttt{out/figures/<region>\_week/} & 7 日ビンの図一式。 \\
+\texttt{out/csv/*\_week.csv} & 7 日ビンの CSV 表（\texttt{bin\_calendar\_week.csv} を含む）。 \\
+\bottomrule
+\end{longtable}
+
+どちらの NetCDF も、自分がどの区切り方で作られたかを
+\texttt{bin\_scheme}、\texttt{bin\_labels}、\texttt{bin\_start\_days} の
+属性に持っている。図の軸ラベルも表の列名もこの属性から作られるので、
+2 つの製品を取り違えて読むことはできない。
+
+\section{ライセンスと帰属}
+
+本報告および付随データは JRA-3Q の二次的著作物であり、
+\textbf{CC BY-NC-SA 4.0}（非商用・継承・表示）を継承する。
+リポジトリ本体のライセンスとは別である。
+
+引用：\citet{kosaka2024jra3q}。
+データ提供：気象庁、配布：NSF NCAR GDEX（データセット \texttt{d640000}）\citep{gdex_d640000}。

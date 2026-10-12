@@ -1,0 +1,125 @@
+% LuaLaTeX + jlreq. TeX Live 2024 ships both jlreq and luatexja, and the
+% HaranoAji fonts they default to, so this builds with no font installation.
+\usepackage{luatexja}
+\usepackage[haranoaji]{luatexja-preset}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{siunitx}
+\usepackage{xcolor}
+\usepackage[table]{xcolor}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage[backend=bibtex,style=authoryear,natbib=true]{biblatex}
+\usepackage[hidelinks]{hyperref}
+
+\addbibresource{refs.bib}
+
+% Figures live where the pipeline wrote them, so the report can never show a
+% stale copy.
+\graphicspath{{../out/figures/}{../out/figures/hokkaido/}{../out/figures/wakayama/}
+  {../out/figures/hokkaido_week/}{../out/figures/wakayama_week/}
+  {../out/figures/compare/}}
+
+\sisetup{
+  detect-all,
+  per-mode = symbol,
+  range-phrase = {--},
+  range-units = single,
+}
+
+% Japanese unit names are written as \num{140} 分, not \SI{140}{分}. siunitx
+% sets the unit argument in a Latin font, so a CJK unit is silently dropped and
+% the reader is left with a bare number: the log says "Missing character: There
+% is no 分 (U+5206) in font [lmroman10-regular]" and the PDF says "約 140".
+% \DeclareSIUnit does not help -- the glyph is lost at typesetting, not at
+% parsing -- and neither does wrapping it in \mbox or \text.
+
+\captionsetup{
+  font = small,
+  labelfont = bf,
+  justification = raggedright,
+  singlelinecheck = false,
+}
+
+\definecolor{linkblue}{HTML}{2A78D6}
+\hypersetup{
+  colorlinks = true,
+  linkcolor = linkblue,
+  citecolor = linkblue,
+  urlcolor = linkblue,
+}
+
+% Shorthands for the units that appear constantly.
+\newcommand{\ms}{\si{\metre\per\second}}
+\newcommand{\hpa}{\si{\hecto\pascal}}
+\newcommand{\km}{\si{\kilo\metre}}
+
+% A box for the "why this choice" asides, which are the point of this report.
+\usepackage{tcolorbox}
+\tcbuselibrary{breakable, skins}
+\newtcolorbox{whybox}[1]{
+  colback = linkblue!4,
+  colframe = linkblue!40,
+  boxrule = 0.4pt,
+  left = 6pt, right = 6pt, top = 5pt, bottom = 5pt,
+  title = {#1},
+  fonttitle = \bfseries\small,
+  breakable,
+}
+
+% Code blocks. listings rather than minted: minted shells out to pygmentize,
+% which lives only in the conda environment, so a plain `make` outside it
+% would fail. listings is pure TeX and always builds.
+%
+% Only the command names are keywords. Using listings' bash language would
+% colour `cd` and `env` while leaving `conda` and `python` plain, which reads
+% as random rather than as a rule.
+\usepackage{listings}
+\usepackage{needspace}
+\definecolor{codebg}{HTML}{F7FAFD}
+\definecolor{codecomment}{HTML}{6B7280}
+\definecolor{codestring}{HTML}{9A4B00}
+\lstset{
+  basicstyle = \ttfamily\small,
+  keywordstyle = \color{linkblue}\bfseries,
+  % No \itshape: the Japanese comments would come out as slanted mincho.
+  commentstyle = \color{codecomment},
+  stringstyle = \color{codestring},
+  morekeywords = {conda, python, pytest, make, cd, ls, cat},
+  comment = [l]{\#},
+  morestring = [b]",
+  morestring = [b]',
+  showstringspaces = false,
+  extendedchars = true,
+  columns = fullflexible,
+  keepspaces = true,
+  breaklines = true,
+  breakindent = 2em,
+  backgroundcolor = \color{codebg},
+  frame = single,
+  rulecolor = \color{linkblue!40},
+  framerule = 0.4pt,
+  framesep = 6pt,
+  xleftmargin = 6pt,
+  xrightmargin = 6pt,
+  aboveskip = \medskipamount,
+  belowskip = \medskipamount,
+}
+% A framed block split two lines before a page break looks like a mistake.
+% Start one on a fresh page unless several lines fit.
+\newcommand{\codeblock}{\Needspace*{6\baselineskip}}
+
+% jlreq measures the width of the contents-page number box once, when the
+% class loads and \thesection is still \arabic{section}. The appendix
+% renumbers sections to "付録A", which no longer fits, so the number runs
+% into the title ("付録 BCSV 表の一覧"). Widen the box from the appendix on.
+\makeatletter
+\newcommand{\appendixtocwidth}{%
+  \renewcommand{\l@section}{\@dottedtocline{1}{0pt}{4.5em}}%
+}
+\makeatother

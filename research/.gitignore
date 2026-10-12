@@ -1,0 +1,36 @@
+data/
+out_smoke/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Outputs: the binary products are release assets, not repository content --
+# the NetCDF alone is over 100 MB. The curated CSV tables and the report PDF are
+# small, are what a reader would want to check, and so are kept.
+out/*
+!out/csv/
+out/csv/data_inventory.csv
+
+report/*.aux
+report/*.log
+report/*.out
+report/*.toc
+report/*.fdb_latexmk
+report/*.fls
+report/*.synctex.gz
+report/*.bbl
+report/*.blg
+report/*.run.xml
+report/*-blx.bib
+
+# Release archives and large intermediate tables stay out of git.
+*.tar.gz
+*.parquet
+winter_japan/report/*.aux
+winter_japan/report/*.log
+winter_japan/report/*.fls
+winter_japan/report/*.fdb_latexmk
+winter_japan/report/*.out
+winter_japan/report/*.toc
+winter_japan/report/build.log

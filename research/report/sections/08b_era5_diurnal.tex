@@ -1,0 +1,270 @@
+\section{ERA5 の 1 時間値で見た時間帯の違い}
+\label{sec:era5-diurnal}
+
+本文の統計は、JRA-3Q の 6 時間ごとの解析値（09・15・21・03 時、日本時間）を
+時刻で分けずにまとめたものである。
+第 \ref{sec:method} 章ではその根拠として、夜（03 時）と昼（15 時）の差が
+\SI{1}{\metre\per\second} 未満であることを示した（図\ref{fig:f8-hokkaido}）。
+ただし 6 時間ごとの値では、1 日のうち 4 つの時刻しか見ていない。
+
+そこで、1 時間ごとの値がある ERA5 \citep{hersbach2020era5} を北海道について 1 か月ぶん取り、
+朝・昼・夕・晩で風に違いがあるかを調べた。
+コードと取得の手順は \texttt{research/alpha/} にある。
+
+\subsection{データと方法}
+
+\begin{table}[H]
+\centering
+\caption{使ったデータと、時間帯の切り方}
+\label{tab:era5-setup}
+\begin{tabular}{@{}lp{0.72\linewidth}@{}}
+\toprule
+データ & ERA5 気圧面解析、NSF NCAR GDEX \citep{gdex_d633000} \\
+格子・面 & \ang{0.25} 格子、37 気圧面（\SIrange{1000}{1}{\hecto\pascal}） \\
+領域 & 本文の北海道と同じ（\ang{40.0}--\ang{46.5}N / \ang{138.0}--\ang{149.0}E、27 $\times$ 45 点） \\
+期間 & 2025 年 7 月。日本時間で 24 時間そろう 7 月 2--31 日の 30 日 \\
+時間帯（日本時間） & 朝 05--10 時、昼 11--16 時、夕 17--22 時、晩 23--04 時 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+月は 7 月にした。夏は日射による地表付近の変化（海陸風や混合層の発達）が最も強く、
+時間帯の違いが出るならこの季節に出るはずだからである。
+2025 年は本文の統計の期間（2016--2025 年）に含まれる。
+
+日々の天気の違いは時間帯の違いよりずっと大きい。
+そのまま時間帯ごとに平均すると、たまたま荒れた日がどの時間帯に多く入ったかで結果が変わってしまう。
+そこで\textbf{各日（日本時間の 0--23 時）の平均からの偏差}をとり、その偏差を時間帯ごとに平均した。
+
+信頼区間は、日を 1 つの標本として計算した。
+同じ日の 6 時間は互いによく似ているので、1 時間ずつを別の標本に数えると区間が狭く出すぎる。
+まず時間帯の 6 時間を日ごとに平均し、その 30 個の値の標準誤差から 95 \% 信頼区間を求めた。
+
+落下点は本文と同じ閉形式（式\eqref{eq:drift}、上昇 \SI{5}{\metre\per\second}、
+破裂 \SI{30}{\kilo\metre}、降下 \SI{6}{\metre\per\second}）で、
+打ち上げ時刻の風の鉛直分布から計算した。
+地点は本文の代表地点（VOISING）に最も近い格子点（\ang{42.25}N, \ang{142.75}E）である。
+
+\subsection{風速の 1 日の変化}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{alpha/E1-202507_hourly_curves.pdf}
+\caption[1 時間ごとの風速の変化]{領域平均風速の、日平均からの偏差を 1 時間ごとに並べたもの。
+線は 30 日の平均、帯は 95 \% 信頼区間。背景の色が 4 つの時間帯である。
+縦軸の目盛りは面ごとに違う。
+975 hPa で 06→07 時と 18→19 時に見える段差は、大気の変化ではなく ERA5 の作り方から来ている
+（\ref{sec:era5-jumps} 節）。}
+\label{fig:e1}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{alpha/E2-202507_block_profiles.pdf}
+\caption[時間帯ごとの偏差の高度分布]{時間帯ごとの平均から日平均を引いた値を、高度に対して描いたもの。
+左は風速、右は風ベクトル（向きの変化も含む）の偏差の大きさ。帯は 95 \% 信頼区間。}
+\label{fig:e2}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{時間帯ごとの風速の偏差（領域平均、\si{\metre\per\second}、$\pm$ は 95 \% 信頼区間）。
+右端は比べるための物差しで、日平均風速そのものの日々の標準偏差である。}
+\label{tab:era5-blocks}
+\small
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+気圧面（高度） & {朝} & {昼} & {夕} & {晩} & {日々の標準偏差} \\
+\midrule
+\SI{975}{\hecto\pascal}（\SI{0.3}{\kilo\metre}） & $-0.23 \pm 0.19$ & $+0.04 \pm 0.13$ & $-0.07 \pm 0.32$ & $+0.26 \pm 0.24$ & 2.79 \\
+\SI{850}{\hecto\pascal}（\SI{1.5}{\kilo\metre}） & $+0.00 \pm 0.20$ & $+0.03 \pm 0.20$ & $-0.04 \pm 0.32$ & $+0.01 \pm 0.31$ & 3.57 \\
+\SI{500}{\hecto\pascal}（\SI{5.8}{\kilo\metre}） & $-0.08 \pm 0.34$ & $+0.15 \pm 0.23$ & $+0.09 \pm 0.48$ & $-0.16 \pm 0.37$ & 3.42 \\
+\SI{200}{\hecto\pascal}（\SI{12.4}{\kilo\metre}） & $-0.59 \pm 0.54$ & $+0.03 \pm 0.42$ & $+0.64 \pm 0.88$ & $-0.08 \pm 0.70$ & 6.01 \\
+\SI{50}{\hecto\pascal}（\SI{21.0}{\kilo\metre}） & $+0.44 \pm 0.23$ & $-0.45 \pm 0.28$ & $-0.02 \pm 0.28$ & $+0.04 \pm 0.17$ & 1.17 \\
+\SI{30}{\hecto\pascal}（\SI{24.3}{\kilo\metre}） & $+0.66 \pm 0.26$ & $-0.60 \pm 0.30$ & $-0.10 \pm 0.22$ & $+0.04 \pm 0.20$ & 1.14 \\
+\SI{10}{\hecto\pascal}（\SI{31.6}{\kilo\metre}） & $+0.52 \pm 0.39$ & $-0.44 \pm 0.39$ & $-0.10 \pm 0.29$ & $+0.03 \pm 0.40$ & 1.07 \\
+\SI{1}{\hecto\pascal}（\SI{48.7}{\kilo\metre}） & $+3.25 \pm 0.63$ & $-1.17 \pm 0.74$ & $-3.71 \pm 0.82$ & $+1.63 \pm 0.85$ & 3.38 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+結果は高度によって 3 つに分かれる。
+
+\paragraph{対流圏（地上--約 \SI{16}{\kilo\metre}）では、時間帯の違いはほとんど無い。}
+高度 \SI{3}{\kilo\metre} より下では、時間帯ごとの偏差は最大でも \SI{0.3}{\metre\per\second} で、
+日々の標準偏差（\SIrange{2}{3.6}{\metre\per\second}）の 1 割程度しかない。
+信頼区間が 0 をまたがない組もあるが（975 hPa の朝 $-0.23$、晩 $+0.26$ など）、
+大きさは本文の統計の精度より小さい。
+対流圏上部の \SI{200}{\hecto\pascal} では夕が $+0.64$ とやや大きいが、
+信頼区間（$\pm 0.88$）が広く、0 と区別できない。
+
+\paragraph{成層圏（約 \SIrange{20}{32}{\kilo\metre}）には、はっきりした日変化がある。}
+\SIrange{50}{10}{\hecto\pascal} では、風速が朝 6 時ごろに最も強く、
+昼 14--16 時ごろに最も弱くなる。
+1 日の中の振れ幅は \SI{30}{\hecto\pascal} で \SI{1.8}{\metre\per\second}、
+\SI{10}{\hecto\pascal} で \SI{1.4}{\metre\per\second} である。
+朝と昼の偏差は信頼区間が 0 をまたがず、
+しかも日々の標準偏差（約 \SI{1.1}{\metre\per\second}）と同じくらいの大きさがある。
+夏の成層圏は風が弱く日々の変動も小さいので、1 日の中の変化が相対的に目立つ。
+
+\paragraph{破裂高度より上（約 \SI{35}{\kilo\metre} 以上）では、日変化はさらに大きい。}
+\SI{1}{\hecto\pascal}（約 \SI{49}{\kilo\metre}）では 1 日の振れ幅が \SI{8}{\metre\per\second} を超える。
+ただしこの高さは破裂高度 \SI{30}{\kilo\metre} より上なので、落下点には関係しない。
+
+\begin{whybox}{成層圏の日変化は大気潮汐である}
+成層圏のオゾン層は太陽の紫外線を吸収して昼に暖まり、夜に冷える。
+この加熱が 1 日周期で繰り返されるので、気圧と風も 1 日周期で振動する。
+これを大気潮汐と呼ぶ。月の引力による海の潮汐とは別の現象で、原因は日射である。
+
+大気潮汐の振幅は高度とともに大きくなるので、
+\SI{30}{\hecto\pascal} より \SI{1}{\hecto\pascal} のほうが振れ幅が大きい。
+本文の図\ref{fig:g1-hokkaido} で、\SI{10}{\hecto\pascal} と \SI{30}{\hecto\pascal} の
+風の変化量が遅れ 24 時間でいったん下がるのも、同じ潮汐による。
+\end{whybox}
+
+\subsection{地表付近の昼と晩}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{alpha/E3-202507_day_night_map.pdf}
+\caption[昼と晩の風の差]{昼（11--16 時）の平均風から晩（23--04 時）の平均風を引いたベクトル。
+色がその大きさ。左は \SI{975}{\hecto\pascal}（約 \SI{0.3}{\kilo\metre}）、
+右は \SI{850}{\hecto\pascal}（約 \SI{1.5}{\kilo\metre}）。
+山地では \SI{975}{\hecto\pascal} 面が地面の下にあり、その値は外挿である。}
+\label{fig:e3}
+\end{figure}
+
+領域平均では小さかった地表付近の差も、格子点ごとに見ると大きいところがある。
+\SI{975}{\hecto\pascal} では昼と晩の差が最大 \SI{3.5}{\metre\per\second}、
+\SI{850}{\hecto\pascal} でも最大 \SI{2.6}{\metre\per\second} ある。
+差が大きいのは海岸や山地の周りで、海陸風や山谷風の影響と考えられる。
+
+それでも領域平均の差が小さくなるのは、差の向きが場所によってばらばらで、
+平均すると打ち消し合うからである。
+打ち上げ地点ごとの地上風は、本文の第 \ref{sec:limits} 章に書いたとおり、
+統計ではなく当日の予報と現地の観測で判断する必要がある。
+
+\subsection{ERA5 の解析窓の境目での跳び}
+\label{sec:era5-jumps}
+
+図\ref{fig:e1} の \SI{975}{\hecto\pascal} には、
+06→07 時に $-0.65$、18→19 時に $-0.55$ \si{\metre\per\second} の段差がある。
+1 時間でこれだけ変わるのは不自然なので、1 時間ごとの風の変化量を時刻別に調べた。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{alpha/E6-202507_hourly_jumps.pdf}
+\caption[1 時間ごとの風の変化量]{1 時間ごとの風ベクトルの変化量 $|\mathbf{V}(t+1)-\mathbf{V}(t)|$ を
+格子点ごとに求めて領域平均し、変化の始まる時刻（UTC）ごとに並べたもの。
+各面の中央値を 1 とした比で描いている。
+点線が ERA5 の 12 時間の解析窓の境目（09 UTC と 21 UTC）である。}
+\label{fig:e6}
+\end{figure}
+
+変化量は、09→10 UTC と 21→22 UTC の 2 か所だけが飛び抜けて大きい。
+\SI{850}{\hecto\pascal} ではほかの時刻の 1.7--1.9 倍、
+\SI{500}{\hecto\pascal} で 1.3--1.6 倍、\SI{10}{\hecto\pascal} で 1.1--1.2 倍である。
+09 UTC と 21 UTC は、日本時間の 18 時と 6 時にあたる。
+
+ERA5 は、09--21 UTC と 21--09 UTC の 12 時間ごとに観測を取り込んで解析を作っている。
+1 つの解析窓の中では時間変化が滑らかにつながるが、
+窓と窓の境目では、次の窓の観測に合わせて風が不連続に修正される。
+2 か所の跳びはその境目と一致しているので、\textbf{大気の変化ではなく解析の作り方による見かけの変化}と考えられる。
+
+したがって、ERA5 の 1 時間値で見た地表付近の「朝の風速低下」の一部は、この跳びによるものである。
+1 時間値を使って日変化を調べるときは、この 2 か所をまたぐ比較に注意が要る。
+一方、成層圏の日変化（朝に強く昼に弱い）は境目と関係のない滑らかな形をしており、
+跳びも小さいので、実在の変化と考えてよい。
+
+\subsection{JRA-3Q との比較}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\linewidth]{alpha/E5-202507_vs_jra3q.pdf}
+\caption[ERA5 と JRA-3Q の日変化の比較]{夜（03 時）と昼（15 時）の平均風速の差を、
+ERA5（2025 年 7 月）と JRA-3Q（2016--2025 年の 7 月）で比べたもの。
+北海道領域の平均。JRA-3Q の時刻別の統計は \SI{300}{\hecto\pascal} より下の面だけにある。}
+\label{fig:e5}
+\end{figure}
+
+本文の図\ref{fig:f8-hokkaido} と同じ量（03 時 $-$ 15 時）を ERA5 で計算すると、
+高度 \SI{4}{\kilo\metre} より下では JRA-3Q とほぼ重なる。
+高度 \SIrange{0.5}{1}{\kilo\metre} 付近で夜のほうが \SI{0.2}{\metre\per\second} ほど強い点も共通である。
+それより上では ERA5 のほうが昼に強い側へずれるが、差は ERA5 の信頼区間の中に収まっている。
+ERA5 は 1 か月、JRA-3Q は 10 年ぶんの平均なので、上層の差は年ごとのばらつきと区別できない。
+
+なお JRA-3Q の 4 つの解析時刻（09・15・21・03 時）は、
+朝・昼・夕・晩の 4 つの時間帯に 1 回ずつ入っている。
+本文の統計は 4 つの時間帯を同じ重みで含んでいるので、
+時間帯による偏りは平均の中で相殺されている。
+
+\subsection{落下点への影響}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{alpha/E4-202507_drift_by_launch_hour.pdf}
+\caption[打ち上げ時刻と落下点]{代表地点から上げた場合の落下点を、日平均の落下点からの偏差で示したもの。
+左は打ち上げ時刻（日本時間）ごと、右は時間帯ごとの平均。帯と誤差棒は 95 \% 信頼区間。
+風は打ち上げ時刻・地点で固定している（本文の閉形式と同じ）。}
+\label{fig:e4}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{時間帯ごとの落下点の偏差（代表地点、2025 年 7 月、\si{\kilo\metre}）}
+\label{tab:era5-drift}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+時間帯 & {東西（東が正）} & {南北（北が正）} \\
+\midrule
+朝 & $-1.1 \pm 3.7$ & $+1.2 \pm 2.9$ \\
+昼 & $+2.6 \pm 2.4$ & $+2.1 \pm 3.0$ \\
+夕 & $-0.4 \pm 5.4$ & $-2.7 \pm 4.5$ \\
+晩 & $-1.1 \pm 4.1$ & $-0.5 \pm 4.5$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+2025 年 7 月の代表地点の平均飛行距離は \SI{51.5}{\kilo\metre} である。
+時間帯ごとの落下点の偏差はどれも \SI{3}{\kilo\metre} 以内で、
+信頼区間が 0 をまたがないのは昼の東西（$+2.6 \pm 2.4$）だけである。
+昼に上げた場合と晩に上げた場合の差は、東へ \SI{3.7}{\kilo\metre}、北へ \SI{2.6}{\kilo\metre}、
+合わせて約 \SI{4.5}{\kilo\metre} になる。
+
+この差を高度帯に分けると、地上--\SI{3}{\kilo\metre} の寄与は東西 \SI{0.1}{\kilo\metre}、南北 $-\SI{0.8}{\kilo\metre}$ と小さく、
+大部分は \SIrange{3}{20}{\kilo\metre}（東西 \SI{2.2}{\kilo\metre}、南北 \SI{1.5}{\kilo\metre}）と
+\SIrange{20}{30}{\kilo\metre}（東西 \SI{1.3}{\kilo\metre}、南北 \SI{1.8}{\kilo\metre}）から来ている。
+地表付近の日変化は上昇・降下とも短時間で通り過ぎるので、落下点にはほとんど影響しない。
+
+比べるための物差しとして、同じ月・同じ地点で
+打ち上げが 24 時間ずれたときの落下点の移動は中央値 \SI{35.3}{\kilo\metre}、
+日ごとの平均落下点のばらつき（標準偏差）は \SI{47.3}{\kilo\metre} だった。
+時間帯による違い（約 \SI{4.5}{\kilo\metre}）はその 1 割程度で、
+本文の第 \ref{sec:fidelity} 章で測った「風を固定したことによる誤差」（夏 \SI{3.2}{\kilo\metre}）と同じくらいの大きさである。
+
+\subsection{まとめと限界}
+
+\begin{itemize}
+  \item 対流圏の風には、朝・昼・夕・晩ではっきりした違いは無い。
+        領域平均の差は \SI{0.8}{\metre\per\second} 以下で、日々の変動の 1 割程度である。
+  \item 成層圏（約 \SIrange{20}{32}{\kilo\metre}）には大気潮汐による日変化があり、
+        風速は朝 6 時ごろに強く、昼 15 時ごろに弱い（振れ幅 \SIrange{1.4}{1.8}{\metre\per\second}）。
+  \item 落下点への影響は、昼と晩の差で約 \SI{4.5}{\kilo\metre} である。
+        1 日ずれたときの移動（\SI{35}{\kilo\metre}）よりずっと小さい。
+  \item 以上から、本文で統計を時刻で分けなかった判断は、少なくとも夏の北海道については妥当である。
+  \item ERA5 の 1 時間値には、09 UTC と 21 UTC の解析窓の境目で不自然な跳びがある。
+        1 時間値で日変化を調べるときは、この 2 か所に注意が要る。
+\end{itemize}
+
+この付録は 1 年の 1 か月だけを見た試験的な解析であり、次の限界がある。
+
+\begin{itemize}
+  \item 30 日の平均なので、信頼区間が広い。とくに対流圏上部の差は年による違いと区別できない。
+  \item 夏だけを見ている。冬は成層圏の風が強く日々の変動も大きいので、
+        大気潮汐の相対的な大きさは夏より小さくなると予想されるが、確かめていない。
+  \item 落下点は、風を打ち上げ時刻・地点で固定した閉形式で計算している。
+        飛行中の 2 時間余りの間にも風は時刻とともに変わるが、その効果は入れていない。
+\end{itemize}
+
+ERA5 は Copernicus Climate Change Service の製品であり、
+本付録の図は Copernicus Climate Change Service の情報を加工したものを含む。

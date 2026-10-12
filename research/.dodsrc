@@ -1,0 +1,5 @@
+# libnetcdf DAP client settings. Read from the current working directory first,
+# then $HOME -- so the CLI must be run from the climatology/ directory.
+HTTP.TIMEOUT=300
+HTTP.CONNECTTIMEOUT=60
+HTTP.USERAGENT=windclim/0.1 (+https://github.com/ddd3h/Falling-position-simulator)

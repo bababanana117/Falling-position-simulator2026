@@ -1,0 +1,12 @@
+preview/
+figures/.stamp
+main.aux
+main.log
+main.nav
+main.snm
+main.vrb
+main.toc
+main.out
+main.fdb_latexmk
+main.fls
+main.synctex.gz

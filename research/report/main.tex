@@ -1,0 +1,66 @@
+\documentclass[paper=a4, fontsize=10pt, jafontsize=10pt]{jlreq}
+
+\input{preamble}
+
+\title{JRA-3Q を用いた高層風の統計的傾向の解析}
+\author{西濱大将}
+\date{2026年9月}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+スペースバルーンの落下位置は、打ち上げてから着地するまでに通過する全高度の風で決まる。
+ところが現行のシミュレータが使える風データはどちらも「予報」であり、
+数日先までしか見られないうえ、高度 \SI{24}{\kilo\metre} より上の風を持っていない。
+スペースバルーンの飛行はその上まで及ぶ。
+
+本報告は、気象庁第3次長期再解析 JRA-3Q の 2016--2025 年 10 年分から、
+北海道・和歌山・愛媛（愛南町）の 3 領域について「いつ・どこで・どの高度の風が、ふつうどちらへどれだけ吹くか」を
+統計としてまとめたものである。
+高度は地上から約 \SI{40}{\kilo\metre} まで、時期は月を 2 分割した半月単位で扱う。
+
+まとめた統計で個々の日の落下位置をどれだけ正確に予測できるかも測った。
+落下位置の誤差は、時期の情報をまったく使わない場合と比べて、
+和歌山では \SI{45}{\percent}、愛媛では \SI{47}{\percent} 下がるのに対し、北海道では \SI{17}{\percent} しか下がらない。
+同じ手順で作った気候値でも、\textbf{南の 2 領域では時期から落下位置をよく予測できるが、北海道ではあまり予測できない}。
+和歌山と愛媛は経度が \ang{2} 離れているが、上空の気候はほとんど同じだった。
+
+さらに、現行シミュレータが風を\textbf{打ち上げ時刻と打ち上げ地点で固定している}近似の
+誤差を、再解析の風の中で軌道を計算して測った。
+この近似による落下点のずれは \SIrange{2.8}{5.3}{\kilo\metre}、飛行距離の
+\SIrange{2}{5}{\percent} にとどまる。
+一方、打ち上げが 1 日ずれると落下点は \SIrange{29}{63}{\kilo\metre} 動く。
+落下点のずれは、風を固定したことより、日程がずれたことによるもののほうがはるかに大きい。
+また、Web アプリのモンテカルロは機体の諸元だけを振っているため、
+示している散らばりは実際に起こりうる大きさの 1 割程度である。
+残りは風のばらつきによるもので、それは現在まったく考慮されていない。
+
+読者に気象学の予備知識は仮定しない。
+各章では「何を計算したか」だけでなく「なぜその計算を選んだか」を述べる。
+特に、風向のような円環量を平均してはいけない理由、
+平均風速に 2 種類ある理由、
+そして 600 個の観測が 600 個分の情報を持たない理由は、
+結果の読み方そのものに関わるため丁寧に説明する。
+\end{abstract}
+
+\tableofcontents
+\clearpage
+
+\input{sections/01_intro}
+\input{sections/02_data}
+\input{sections/03_method}
+\input{sections/03b_validation}
+\input{sections/04_hokkaido}
+\input{sections/05_wakayama}
+\input{sections/05b_ehime}
+\input{sections/06_compare}
+\input{sections/06b_fidelity}
+\input{sections/07_limits}
+\input{sections/08_appendix}
+\input{sections/08b_era5_diurnal}
+\input{sections/08c_winter_sw}
+
+\printbibliography[title={参考文献}]
+
+\end{document}

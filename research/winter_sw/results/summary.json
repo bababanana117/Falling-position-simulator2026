@@ -1,0 +1,84 @@
+{
+ "definitions": {
+  "plain_max_elev_m": 100.0,
+  "plain_max_slope_deg": 2.0,
+  "snow_sd_m": 0.001,
+  "launch_step_deg": 0.1
+ },
+ "n_launch_points": 2151,
+ "terrain": {
+  "land_plain_share": 0.20311474946483374,
+  "plain_urban_share": 0.12399844731869517
+ },
+ "best_by_scenario": {
+  "標準（5 m/s・30 km）": {
+   "lat": 35.6,
+   "lon": 137.1,
+   "p_good_mean": 0.22,
+   "by_bin": {
+    "1月前半": 0.23,
+    "1月後半": 0.18,
+    "2月前半": 0.23,
+    "2月後半": 0.239
+   },
+   "mean_flight_km": 255.5
+  },
+  "速い上昇（8 m/s・30 km）": {
+   "lat": 36.0,
+   "lon": 138.2,
+   "p_good_mean": 0.356,
+   "by_bin": {
+    "1月前半": 0.397,
+    "1月後半": 0.3,
+    "2月前半": 0.293,
+    "2月後半": 0.434
+   },
+   "mean_flight_km": 188.3
+  },
+  "低い破裂（5 m/s・20 km）": {
+   "lat": 36.1,
+   "lon": 137.9,
+   "p_good_mean": 0.233,
+   "by_bin": {
+    "1月前半": 0.26,
+    "1月後半": 0.189,
+    "2月前半": 0.15,
+    "2月後半": 0.335
+   },
+   "mean_flight_km": 239.4
+  },
+  "速い上昇・破裂 25 km": {
+   "lat": 36.0,
+   "lon": 138.2,
+   "p_good_mean": 0.371,
+   "by_bin": {
+    "1月前半": 0.405,
+    "1月後半": 0.331,
+    "2月前半": 0.312,
+    "2月後半": 0.438
+   },
+   "mean_flight_km": 186.7
+  },
+  "速い上昇・破裂 20 km": {
+   "lat": 36.1,
+   "lon": 138.2,
+   "p_good_mean": 0.408,
+   "by_bin": {
+    "1月前半": 0.437,
+    "1月後半": 0.373,
+    "2月前半": 0.368,
+    "2月後半": 0.453
+   },
+   "mean_flight_km": 177.3
+  }
+ },
+ "best_scenario": "速い上昇・破裂 20 km",
+ "figures": [
+  "out/figures/winter_sw/W1_target_and_snow.png",
+  "out/figures/winter_sw/W2_drift_jan_feb.png",
+  "out/figures/winter_sw/W3_suitability_standard.png",
+  "out/figures/winter_sw/W4_scenarios.png",
+  "out/figures/winter_sw/W5_suitability_best.png",
+  "out/figures/winter_sw/W6_landing_clouds.png"
+ ]
+}

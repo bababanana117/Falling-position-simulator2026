@@ -1,0 +1,39 @@
+\begin{frame}{データセットの下準備}{手法：平均風速と平均風向}
+  \lead{風向は平均しない。$u, v$ を平均してから向きに戻す}
+  \begin{columns}[T]
+    \begin{column}{0.36\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=1mm,y=1mm,>={Latex[length=2.2mm,width=1.8mm]}]
+        \draw[wcMuted,line width=0.5pt] (0,0) circle (10);
+        \draw[wcMuted,line width=0.5pt] (0,-11.5) -- (0,11.5);
+        \draw[wcMuted,line width=0.5pt] (-11.5,0) -- (11.5,0);
+        \node[font=\fontsize{8.5}{10}\selectfont,text=wcSecondary] at (0,13.5) {北};
+        \draw[->,wcBlue,line width=1.3pt] (0,0) -- (-1.2,9.6);
+        \draw[->,wcBlue,line width=1.3pt] (0,0) -- (1.2,9.6);
+        \node[font=\fontsize{9}{10}\selectfont,text=wcBlue,anchor=east] at (-2,8.5) {359°};
+        \node[font=\fontsize{9}{10}\selectfont,text=wcBlue,anchor=west] at (2,8.5) {1°};
+        \draw[->,wcOrange,line width=1.3pt,dashed] (0,0) -- (0,-9.6);
+        \node[font=\mediumfont\fontsize{9.5}{11}\selectfont,text=wcOrange,anchor=north] at (0,-12) {算術平均 180°（南）×};
+        \draw[->,wcBlue,line width=1.8pt] (24,0) -- (24,9.6);
+        \node[font=\mediumfont\fontsize{9.5}{11}\selectfont,text=wcBlue,anchor=north,align=center] at (24,-1.5) {ベクトル平均\\0°（北）○};
+      \end{tikzpicture}
+      \end{center}
+      \vskip 0.5mm
+      \sub{算術平均だと北風 2 回が南風に}
+    \end{column}
+    \begin{column}{0.62\textwidth}
+      \vskip -5mm
+      {\small
+      \begin{align*}
+        \bar u &= \tfrac{1}{N}\textstyle\sum_i u_i, \qquad \bar v = \tfrac{1}{N}\textstyle\sum_i v_i \\[-0.5mm]
+        \theta &= \bigl(\operatorname{atan2}(\bar u, \bar v)\,\tfrac{180}{\pi} + 180\bigr) \bmod 360 \\[1mm]
+        \text{ベクトル平均}\quad \lvert\bar{\mathbf V}\rvert &= \sqrt{\bar u^2 + \bar v^2} \\[-0.5mm]
+        \text{スカラー平均}\quad \overline{\lvert\mathbf V\rvert} &= \tfrac{1}{N}\textstyle\sum_i \sqrt{u_i^2 + v_i^2} \\[1mm]
+        \text{定常度}\quad C &= \lvert\bar{\mathbf V}\rvert \big/ \overline{\lvert\mathbf V\rvert} \in [0, 1]
+      \end{align*}}
+      \vskip -3mm
+      \sub{\kw{$C < 0.3$} の風向は図で灰色にする\\\src{Mardia+00}}
+    \end{column}
+  \end{columns}
+  \srcline{ベクトル平均は正味の移動、スカラー平均は強さ。風向は吹いてくる向き}
+\end{frame}

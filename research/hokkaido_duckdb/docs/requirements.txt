@@ -1,0 +1,4 @@
+# Documentation build only. The database build itself needs nothing from here.
+sphinx>=8.1
+furo>=2024.8.6
+duckdb>=1.1

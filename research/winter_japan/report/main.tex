@@ -1,0 +1,63 @@
+\documentclass[paper=a4, fontsize=10pt, jafontsize=10pt]{jlreq}
+
+\input{preamble}
+
+\title{12--2 月にスペースバルーンを上げる場所を日本全国から探す\\
+\large 実施できる確率・壱岐で上げた場合・土日に当たる確率}
+\author{西濱大将}
+\date{2026年9月}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+12 月から 2 月にスペースバルーンを上げるとき、日本のどこから上げれば、実際に
+実施までこぎつけられる日がいちばん多いかを調べた。条件は次の 3 つである。
+打ち上げ場所に雪がなく、地上の風と雨が打ち上げに向くこと。
+落下点が平野（市街地を除く）、瀬戸内海、または海岸から \SI{3}{\kilo\metre} 以内の海であること。
+落下点が陸なら、そこにも雪がないこと。
+
+2016--2025 年の 12--2 月の 903 日について、毎朝 9 時に上げたと仮定し、
+再解析 JRA-3Q の風の中で 1 本ずつ軌道を計算した。候補は日本全国の陸地、
+\ang{0.05} 間隔の約 1 万 5 千点である。積雪と地上気象には ERA5 を使い、
+飛行条件のばらつき（上昇速度・破裂高度・降下速度）も 64 通り振った。
+
+結果は次のとおりである。
+\begin{itemize}
+  \item 最適な地域は\textbf{九州北西部から山口県西部}（壱岐・唐津・平戸・糸島・下関）である。
+    冬の西風で東へ約 \SI{250}{\kilo\metre} 流され、多くが\textbf{瀬戸内海}に落ちる。
+    関東・東北・北海道は、標準の飛行ではどこから上げても \SI{5}{\percent} 前後にとどまる。
+  \item 全国を同じ方法（地上気象は ERA5）で比べると、標準の飛行（上昇 \SI{5}{\metre\per\second}・
+    破裂 \SI{30}{\kilo\metre}）では平戸・大島 \SI{33}{\percent}、唐津・加唐島 \SI{32}{\percent}、
+    壱岐 \SI{29}{\percent} などが上位で、差は誤差の範囲にある。短時間の飛行
+    （上昇 \SI{8}{\metre\per\second}・破裂 \SI{20}{\kilo\metre}）では糸島・志摩が \SI{48}{\percent} で最も高い。
+  \item ERA5 の地上風は島や海岸で強く出すぎる。アメダスの 9 時の観測で地上気象を判定し直すと、
+    \textbf{壱岐で実施できる確率は標準の飛行で \SI{37}{\percent}（95\% 区間 34--40）、
+    短時間の飛行で \SI{49}{\percent}（46--51）}で、壱岐は最適地の 1 つである。
+    実施できない \SI{63}{\percent} の内訳は、落下予測が山地に入る日 \SI{35}{\percent}、
+    地上の風・雨 \SI{22}{\percent}、雪などである。
+  \item 壱岐（標準の飛行）で、土日の 1 日に実施できる確率は \SI{37}{\percent}、
+    1 回の週末（土日の 2 日）のどちらかで実施できる確率は \SI{58}{\percent}。
+    1 冬（12--2 月）に実施できる土日は平均 9.6 日あり、毎週末挑戦すれば
+    2 週以内に \SI{82}{\percent}、4 週以内に \SI{93}{\percent} の確率で実施できる。
+  \item OpenStreetMap で探した打ち上げ候補の広場は 9 地域で 674 か所、壱岐島だけで 34 か所ある。
+    壱岐の中ではどこから上げても確率は \SIrange{36}{38}{\percent} で、場所の選び方は
+    電線・建物からの距離と使用の許可で決めればよい。
+  \item 上位の候補地では、成功の 7--9 割が瀬戸内海への着水である。瀬戸内海を使えない場合、
+    上位の候補地で実施できる確率は \SIrange{3}{12}{\percent} に下がる。
+\end{itemize}
+\end{abstract}
+
+\tableofcontents
+\clearpage
+
+\input{sections/01_conditions}
+\input{sections/02_method}
+\input{sections/03_japan}
+\input{sections/04_sites}
+\input{sections/05_iki}
+\input{sections/06_weekend}
+\input{sections/07_sensitivity}
+\input{sections/08_limits}
+
+\end{document}

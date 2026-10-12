@@ -1,0 +1,34 @@
+[project]
+name = "windclim"
+version = "0.1.0"
+description = "JRA-3Q wind climatology (altitude x location x month-week) for balloon flight planning"
+requires-python = ">=3.12"
+# Runtime dependencies are installed via environment.yml (conda-forge), not from here.
+dependencies = []
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["windclim*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "network: hits an external service -- NSF NCAR GDEX for the wind, NOAA NCEI for the terrain (excluded by default)",
+  "slow: long-running tests",
+]
+addopts = "-m 'not network'"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# UP047 wants PEP 695 type parameters on with_retry. The explicit TypeVar reads
+# better next to the Callable signature and works on every 3.12 build.
+"windclim/fetch/retry.py" = ["UP047"]

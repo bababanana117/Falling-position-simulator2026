@@ -1,0 +1,26 @@
+# conda env for the JRA-3Q wind climatology pipeline.
+#   conda env create -f environment.yml
+#   conda activate jra3q
+#
+# Deliberately separate from the repo's `backend` uv project: this is an offline
+# analysis pipeline, not a runtime dependency of the FastAPI service.
+name: jra3q
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - xarray>=2024.7
+  - dask>=2024.7          # winter_japan/common.py Surface: xr.open_mfdataset(combine="by_coords")
+  - netcdf4>=1.7          # also our OPeNDAP client (libnetcdf DAP2)
+  - numpy>=2.0
+  - scipy>=1.14
+  - pandas>=2.2
+  - pyarrow>=17
+  - matplotlib>=3.9
+  - httpx>=0.27
+  - pytest>=8.3
+  - ruff>=0.6
+  # hokkaido_duckdb: the statistics database and its Sphinx manual.
+  - python-duckdb>=1.1
+  - sphinx>=8.1
+  - furo>=2024.8

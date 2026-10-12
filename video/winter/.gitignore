@@ -1,0 +1,4 @@
+build/
+
+# Rendered videos are large; rebuild them with render.py.
+*.mp4

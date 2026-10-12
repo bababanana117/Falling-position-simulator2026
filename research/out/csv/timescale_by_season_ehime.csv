@@ -1,0 +1,5 @@
+season,best_days,recommended_days,resolved_lo_days,resolved_hi_days,skill,baseline_rmse_km,best_rmse_km
+冬 (12-2月),365,365,5,365,2.2204e-16,70.058,70.058
+春 (3-5月),30,30,3,61,0.090407,73.623,66.967
+夏 (6-8月),7,15,3,15,0.26685,74.432,54.57
+秋 (9-11月),7,15,5,15,0.36557,92.959,58.976

@@ -1,0 +1,5 @@
+$pdf_mode = 4;
+$lualatex = 'lualatex -interaction=nonstopmode -halt-on-error -file-line-error %O %S';
+$ENV{'max_print_line'} = 10000;   # unwrapped log lines so check.py regexes match
+$bibtex_use = 0;
+$clean_ext = 'nav snm vrb synctex.gz';

@@ -1,0 +1,145 @@
+month,bin,layer,n_levels,speed_mean,speed_p90,constancy,shear_mag
+1,1,0-2 km surface/boundary layer,9,10.59,21.04,0.7877,10.43
+1,2,0-2 km surface/boundary layer,9,10.06,20.83,0.6579,7.707
+2,1,0-2 km surface/boundary layer,9,10.15,20.61,0.7832,10.45
+2,2,0-2 km surface/boundary layer,9,10.85,22.15,0.7496,10.37
+3,1,0-2 km surface/boundary layer,9,9.687,21.98,0.5595,6.287
+3,2,0-2 km surface/boundary layer,9,9.363,19.69,0.654,8.194
+4,1,0-2 km surface/boundary layer,9,9.117,20.07,0.5711,6.906
+4,2,0-2 km surface/boundary layer,9,9.969,21.26,0.5225,6.227
+5,1,0-2 km surface/boundary layer,9,9.283,18.84,0.555,6.95
+5,2,0-2 km surface/boundary layer,9,8.02,16.72,0.4351,4.773
+6,1,0-2 km surface/boundary layer,9,6.899,15.39,0.3805,4.036
+6,2,0-2 km surface/boundary layer,9,6.81,14.96,0.3627,3.784
+7,1,0-2 km surface/boundary layer,9,6.089,12.81,0.3166,3.507
+7,2,0-2 km surface/boundary layer,8,5.779,13.27,0.3951,3.458
+8,1,0-2 km surface/boundary layer,9,6.366,13.49,0.3353,4.661
+8,2,0-2 km surface/boundary layer,9,7.35,16.62,0.3981,4.244
+9,1,0-2 km surface/boundary layer,8,6.295,13.65,0.315,3.829
+9,2,0-2 km surface/boundary layer,8,7.108,15.42,0.3179,3.666
+10,1,0-2 km surface/boundary layer,9,8.286,18.63,0.4913,4.385
+10,2,0-2 km surface/boundary layer,9,9.076,20.09,0.6176,7.162
+11,1,0-2 km surface/boundary layer,9,10.43,21.44,0.731,9.337
+11,2,0-2 km surface/boundary layer,9,11.43,23.02,0.7882,10.86
+12,1,0-2 km surface/boundary layer,9,11.94,24.09,0.8323,12.2
+12,2,0-2 km surface/boundary layer,9,11.62,22.47,0.8265,11.74
+1,1,2-6 km lower troposphere,8,20.75,45.42,0.8909,3.601
+1,2,2-6 km lower troposphere,7,17.98,40.02,0.8397,3.381
+2,1,2-6 km lower troposphere,8,20.15,46.05,0.8924,4.006
+2,2,2-6 km lower troposphere,7,19.9,40.12,0.8874,3.683
+3,1,2-6 km lower troposphere,7,18.24,38.61,0.8206,3.68
+3,2,2-6 km lower troposphere,7,17.09,37.17,0.8426,3.294
+4,1,2-6 km lower troposphere,7,16.56,36.74,0.7728,2.971
+4,2,2-6 km lower troposphere,7,17.54,37.43,0.7604,3.062
+5,1,2-6 km lower troposphere,7,15.89,32.22,0.7591,2.83
+5,2,2-6 km lower troposphere,7,13.62,30.14,0.7155,2.413
+6,1,2-6 km lower troposphere,7,11.54,25.01,0.6882,2.084
+6,2,2-6 km lower troposphere,7,11.1,23.95,0.7215,1.995
+7,1,2-6 km lower troposphere,7,9.505,21.13,0.6721,1.644
+7,2,2-6 km lower troposphere,8,8.743,18.6,0.6672,1.378
+8,1,2-6 km lower troposphere,7,9.987,22.54,0.7209,2.211
+8,2,2-6 km lower troposphere,7,13.32,27.88,0.7865,2.655
+9,1,2-6 km lower troposphere,8,11.85,27.16,0.7852,2.989
+9,2,2-6 km lower troposphere,8,13.67,32.56,0.8014,3.9
+10,1,2-6 km lower troposphere,7,17.22,40.43,0.8718,4.396
+10,2,2-6 km lower troposphere,7,17.37,41.31,0.8518,4.268
+11,1,2-6 km lower troposphere,7,20.48,38.9,0.8919,4.049
+11,2,2-6 km lower troposphere,7,22.88,44.26,0.9092,4.694
+12,1,2-6 km lower troposphere,7,23.43,45.11,0.9149,4.662
+12,2,2-6 km lower troposphere,7,22.06,43.27,0.912,4.276
+1,1,6-12 km jet,6,37.73,58.14,0.9304,3.536
+1,2,6-12 km jet,7,35.37,62.97,0.9163,4.245
+2,1,6-12 km jet,6,38.46,59.5,0.9359,4.024
+2,2,6-12 km jet,7,37.65,63.17,0.927,4.06
+3,1,6-12 km jet,7,35.04,60.19,0.8932,3.683
+3,2,6-12 km jet,7,34.2,61.2,0.893,3.78
+4,1,6-12 km jet,7,32.88,61.66,0.8492,3.322
+4,2,6-12 km jet,7,34.98,62.56,0.8614,3.881
+5,1,6-12 km jet,7,32.95,62.22,0.8248,3.35
+5,2,6-12 km jet,7,29.95,61.58,0.834,3.765
+6,1,6-12 km jet,7,26.68,59.91,0.8488,4.196
+6,2,6-12 km jet,6,24.27,57.28,0.8441,3.814
+7,1,6-12 km jet,6,21.51,52.59,0.7754,3.183
+7,2,6-12 km jet,6,18.59,42.8,0.699,1.801
+8,1,6-12 km jet,6,20.28,42.69,0.7967,1.845
+8,2,6-12 km jet,6,26.51,50.36,0.8543,2.488
+9,1,6-12 km jet,6,28.73,54.34,0.89,3.266
+9,2,6-12 km jet,6,36.55,66.47,0.9151,4.984
+10,1,6-12 km jet,6,41.01,72.55,0.9261,4.91
+10,2,6-12 km jet,7,39.78,72.02,0.9263,4.743
+11,1,6-12 km jet,7,38.46,65.16,0.9195,3.487
+11,2,6-12 km jet,7,43.1,68.02,0.9377,4.268
+12,1,6-12 km jet,7,43.42,66.92,0.9426,4.45
+12,2,6-12 km jet,7,40.68,62.86,0.9387,3.928
+1,1,12-20 km lower stratosphere,7,34.81,55.89,0.9671,4.024
+1,2,12-20 km lower stratosphere,7,34.67,60.44,0.9745,3.808
+2,1,12-20 km lower stratosphere,7,35.42,54.23,0.9694,4.247
+2,2,12-20 km lower stratosphere,7,32.53,54.98,0.9719,3.76
+3,1,12-20 km lower stratosphere,7,29.42,50.43,0.9714,3.079
+3,2,12-20 km lower stratosphere,7,27.37,52.29,0.9557,3.138
+4,1,12-20 km lower stratosphere,7,26.68,53.42,0.9484,3.092
+4,2,12-20 km lower stratosphere,7,24.58,52.75,0.9457,3.452
+5,1,12-20 km lower stratosphere,7,21.89,55.72,0.9137,3.658
+5,2,12-20 km lower stratosphere,7,19.96,53.19,0.9055,4.01
+6,1,12-20 km lower stratosphere,7,18.65,57.05,0.8967,4.338
+6,2,12-20 km lower stratosphere,8,19.07,59.17,0.7762,4.914
+7,1,12-20 km lower stratosphere,8,16.9,54.62,0.721,4.805
+7,2,12-20 km lower stratosphere,8,14.62,43.2,0.7,3.639
+8,1,12-20 km lower stratosphere,8,15.56,42.72,0.7127,4.065
+8,2,12-20 km lower stratosphere,8,18.99,50.89,0.7288,4.785
+9,1,12-20 km lower stratosphere,8,22.69,54.43,0.8766,5.026
+9,2,12-20 km lower stratosphere,8,31.36,66.69,0.9398,5.71
+10,1,12-20 km lower stratosphere,8,36.19,72.03,0.9494,5.928
+10,2,12-20 km lower stratosphere,7,33.17,67.62,0.9668,4.297
+11,1,12-20 km lower stratosphere,7,32.54,62.71,0.9674,3.891
+11,2,12-20 km lower stratosphere,7,36.43,63.69,0.9772,4.355
+12,1,12-20 km lower stratosphere,7,38.49,62.11,0.9771,4.329
+12,2,12-20 km lower stratosphere,7,35.88,58.68,0.9756,4.531
+1,1,20-30 km float/burst,4,14.82,31.35,0.8003,3.23
+1,2,20-30 km float/burst,4,16.01,34.89,0.8397,3.263
+2,1,20-30 km float/burst,4,15.02,30.1,0.7895,3.446
+2,2,20-30 km float/burst,4,14.3,30.85,0.807,2.915
+3,1,20-30 km float/burst,4,14.75,30.21,0.8298,2.565
+3,2,20-30 km float/burst,4,11.45,23.29,0.7852,2.609
+4,1,20-30 km float/burst,4,11.1,28.51,0.8391,2.264
+4,2,20-30 km float/burst,4,9.057,19.86,0.7482,2.063
+5,1,20-30 km float/burst,4,6.378,15.9,0.6428,1.782
+5,2,20-30 km float/burst,4,3.876,8.348,0.483,2.141
+6,1,20-30 km float/burst,4,4.308,10.25,0.7013,2.179
+6,2,20-30 km float/burst,4,6.633,13.16,0.8894,2.204
+7,1,20-30 km float/burst,4,9.563,15.4,0.9763,1.958
+7,2,20-30 km float/burst,4,9.899,15.8,0.9804,1.594
+8,1,20-30 km float/burst,4,7.974,13.92,0.9542,1.832
+8,2,20-30 km float/burst,4,5.41,11.08,0.7878,1.745
+9,1,20-30 km float/burst,4,3.519,7.718,0.3557,1.779
+9,2,20-30 km float/burst,4,5.782,12.25,0.7613,2.205
+10,1,20-30 km float/burst,4,7.422,17.37,0.6872,2.917
+10,2,20-30 km float/burst,4,11.56,23.94,0.8347,2.682
+11,1,20-30 km float/burst,4,12.98,25.55,0.8412,2.834
+11,2,20-30 km float/burst,4,15.36,28.53,0.855,2.698
+12,1,20-30 km float/burst,4,18.26,34.7,0.8866,2.566
+12,2,20-30 km float/burst,4,15.55,32.4,0.8051,2.965
+1,1,30-40 km upper stratosphere,4,19.33,42.36,0.6214,1.771
+1,2,30-40 km upper stratosphere,4,16.62,37.2,0.3377,1.169
+2,1,30-40 km upper stratosphere,4,19.09,49.04,0.4542,1.55
+2,2,30-40 km upper stratosphere,4,17.22,49.65,0.2903,1.502
+3,1,30-40 km upper stratosphere,4,22.31,61.25,0.2885,1.49
+3,2,30-40 km upper stratosphere,4,14.3,29.92,0.1852,0.9242
+4,1,30-40 km upper stratosphere,4,12.94,24.7,0.5345,0.5909
+4,2,30-40 km upper stratosphere,4,10.32,22.86,0.4011,0.6636
+5,1,30-40 km upper stratosphere,4,6.532,14.9,0.1841,0.2132
+5,2,30-40 km upper stratosphere,3,7.384,14.3,0.7823,0.6458
+6,1,30-40 km upper stratosphere,3,12.15,19,0.9834,0.9774
+6,2,30-40 km upper stratosphere,3,16.88,23.5,0.9939,1.192
+7,1,30-40 km upper stratosphere,3,20.16,26.65,0.9955,1.296
+7,2,30-40 km upper stratosphere,3,20.54,27.07,0.9953,1.277
+8,1,30-40 km upper stratosphere,3,17.52,23.6,0.9939,1.029
+8,2,30-40 km upper stratosphere,3,11.82,18.28,0.9812,0.7074
+9,1,30-40 km upper stratosphere,4,6.311,13.26,0.761,0.373
+9,2,30-40 km upper stratosphere,4,5.239,10.82,0.447,0.3193
+10,1,30-40 km upper stratosphere,4,5.511,11.87,0.2741,0.7891
+10,2,30-40 km upper stratosphere,4,7.711,16.94,0.1538,0.6571
+11,1,30-40 km upper stratosphere,4,15.95,33.88,0.1955,1.053
+11,2,30-40 km upper stratosphere,4,19.92,48.46,0.1712,1.729
+12,1,30-40 km upper stratosphere,4,19.97,47.15,0.2073,1.029
+12,2,30-40 km upper stratosphere,4,23.4,55.34,0.3328,1.504

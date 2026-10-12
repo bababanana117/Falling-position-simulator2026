@@ -1,0 +1,772 @@
+\section{この統計はどこまで信じてよいか}
+\label{sec:validation}
+
+前章までで「月を 2 分割した半月」という単位で統計をとった。
+しかし境界の位置は、打ち上げ計画が「3 月前半に上げたい」という形で立つという
+\textbf{人間側の都合}で決めたものである。
+データからその細かさの違いを読み取れるかどうかは、別の話である。
+
+本章はその点を確かめる。\textbf{15 日という幅はこの章の結果から決めた}ので、
+順序としては本章が先で、前章までの統計が後になる
+（\ref{sec:weeks} 節）。
+当初は 7 日 $\times$ 4 に分けており、本章の結論を受けて改めた。
+7 日版は \ref{sec:appendix-week} に残してある。
+
+結果の図を見る前に読んでほしい。
+
+\subsection{問いの立て方}
+
+「傾向があるか」という問いは、そのままでは答えても意味がない。
+200 hPa の風速が冬 \SI{75}{\metre\per\second}、夏 \SI{23}{\metre\per\second} なのだから、
+季節変化が実在することは検定するまでもない。
+
+意味のある問いはこうである。
+
+\begin{quote}
+\textbf{どの時間単位まで細かく見てよいのか。}
+日単位か、週単位か、旬か、月か、季節か。
+どこから先が信号ではなくノイズなのか。
+\end{quote}
+
+これは検定ではなく\textbf{モデル選択}の問題であり、決着のつく形がある。
+
+\begin{whybox}{なぜ決着がつくのか}
+ビンを細かくすると、手元の 10 年にはよく合うようになる。
+一方でビンあたりの標本数は減り、別の年には合わなくなる。
+
+そこで\textbf{1 年抜き交差検証}を使う。
+10 年のうち 1 年を除き、残り 9 年で気候値を作り、除いた年を予測させる。
+これを 10 通り繰り返す。ビン幅を横軸にとると、
+
+\begin{itemize}
+  \item \textbf{訓練誤差}（同じ年を予測したときの誤差）はビンを細かくするほど単調に下がり続ける
+  \item \textbf{検証誤差}（除いた年を予測したときの誤差）はどこかで底を打ち、それより細かいと上がる
+\end{itemize}
+
+\textbf{検証誤差が最小になる幅が、データから違いを読み取れる最も細かい時間単位}である。
+それより細かく分けると、季節の違いではなく偶然のばらつきを区別していることになる。
+\end{whybox}
+
+\subsubsection{10 回ぶんをどうまとめるか}
+\label{sec:val-folds}
+
+検証年は固定していない。2016 年から 2025 年までが\textbf{順番に 1 回ずつ}検証年になり、
+そのたびに残り 9 年で気候値を作り直す。同じ年を 2 回使うことはない
+（\texttt{timescale.py:331}）。
+
+したがって 1 つのビン幅につき誤差が 10 個出る。報告している RMSE はこれを二乗平均したもので、
+
+\begin{equation}
+  \mathrm{RMSE} = \sqrt{\frac{1}{10}\sum_{j=1}^{10} \mathrm{RMSE}_j^{\,2}}
+  \label{eq:fold-pool}
+\end{equation}
+
+$j$ は「$j$ 番目の年を抜いた回」を指す。
+つまり本章の数字はすべて\textbf{10 年ぶんを通した成績}であって、
+特定の年を予測した成績ではない。
+
+この 10 個は、あとで誤差棒にも使う。
+\ref{sec:val-answer} 節の図に付いている帯は、この 10 個のばらつきから作った標準誤差である。
+ただし\textbf{年ごとの成績のばらつき}をそのまま使うのではない。
+同じ 10 年がどのビン幅も採点しているので、
+「ビン幅 A とビン幅 B の差」を年ごとにとってから、その差の標準誤差を計算する。
+こうすると、年による成績の良し悪しが差の両側で打ち消し合い、
+ビン幅どうしの比較がずっと精密になる（対応のある比較）。
+年ごとのばらつきをそのまま使うと、本当にある差がその中に埋もれてしまう。
+
+予測する対象は\textbf{落下位置}にした。
+第 \ref{sec:drift} 節の飛行モデルで、各解析時刻の風のプロファイルから
+着地変位を厳密に計算できるためである。
+風そのものについても同じことを行い、高度別の結果を \ref{sec:val-level} 節に示す。
+
+\subsection{本章で使う 2 つの目盛り}
+\label{sec:val-metrics}
+
+以降の図と表は、誤差を \textbf{RMSE}、改善の度合いを\textbf{スキル}で表す。
+どちらも本章だけで使う量なので、先に定義しておく。
+
+\subsubsection{「予測」と「実際」が何を指すか}
+\label{sec:val-what}
+
+先に、以降の式に出てくる 2 つの語をはっきりさせておく。
+どちらも日常語と意味がずれているので、ここを取り違えると章全体を誤解することになる。
+
+\paragraph{「予測」は気候値の引き当てであって、機械学習ではない。}
+ここでいう予測モデルは、\textbf{該当するビンに入る訓練年の落下点を平均しただけ}のものである
+（\texttt{timescale.py} の \texttt{\_group\_means} と \texttt{\_predict}）。
+
+たとえばビン幅が 7 日で、\textbf{ある年}の 3 月 10 日の落下点を予測する場合、
+モデルが答えるのは「\textbf{その年を除く}残り 9 年ぶんの、
+3 月 8--14 日に入る全解析の平均落下点」である。
+それだけである。学習も重みも反復も無く、\textbf{引き当て表}と言ってよい。
+
+除く年は固定していない。10 年が順番に 1 回ずつ検証年になる
+（\ref{sec:val-folds} 節）。
+
+\begin{whybox}{なぜわざと単純なモデルなのか}
+本章が知りたいのは「どのくらい細かい時間単位までデータから違いを読み取れるか」であって、
+「落下点をどこまで正確に予測できるか」ではない。
+
+複雑なモデルを使うと、出てきた数字が
+\textbf{データに構造があるからなのか、モデルが賢いからなのか}が分からなくなる。
+ビンの平均という、それ以上単純にしようのないモデルに固定しておけば、
+ビン幅を変えたときの誤差の動きは、データの側の性質だけを反映する。
+
+唯一の例外が \ref{sec:val-harmonic} 節の調和解析で、
+そこでは $\sin$ と $\cos$ を説明変数にした最小二乗回帰を使う。
+これも係数を一次方程式で一度に解くだけで、学習と呼べるものではない。
+\end{whybox}
+
+\paragraph{「実際」は実際に飛ばしたスペースバルーンの着地点ではない。}
+スペースバルーンは一度も飛ばしていない。本報告に観測された着地点は 1 つも入っていない。
+
+「実際」とは、\textbf{その解析時刻に JRA-3Q が与える実際の風のプロファイルを、
+第 \ref{sec:drift} 節の飛行モデルに通して得た落下点}である。
+2020 年 3 月 10 日 00 UTC なら、その時刻・その格子点の 38 層ぶんの風を使って
+計算した着地変位が「実際」になる。
+
+\begin{table}[H]
+\centering
+\caption{式\eqref{eq:rmse} の 2 つの量が何から作られているか}
+\label{tab:pred-vs-true}
+\begin{tabular}{@{}lll@{}}
+\toprule
+ & 何か & どこから来るか \\
+\midrule
+予測 & そのビンの平均落下点 & 検証年を除く 9 年ぶんの平均 \\
+実際 & その解析時刻の落下点 & その時刻の実際の風 $+$ 飛行モデル \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+したがって本章が測っているのは、
+\textbf{「そのビンのふつう」が「その日の実際」からどれだけ離れているか}である。
+飛行モデルの誤差や予報の誤差はここに入っていない。
+飛行モデルは両側で同じものを使っているので差し引かれ、
+予報はそもそも使っていない。
+シミュレータ自身の誤差は第 \ref{sec:fidelity} 章で別に測る。
+
+\subsubsection{RMSE とスキル}
+
+\paragraph{RMSE（二乗平均平方根誤差）}
+予測が平均してどれだけ外れるかを 1 つの数字にしたものである。
+名前の通り、後ろから順に、誤差をとり（error）、二乗し（square）、
+平均し（mean）、平方根に戻す（root）。
+
+\begin{equation}
+\mathrm{RMSE} = \sqrt{\frac{1}{N}\sum_{i=1}^{N}\left(\text{予測}_i - \text{実際}_i\right)^2}
+\label{eq:rmse}
+\end{equation}
+
+$N$ は検証に使った解析の総数（10 年 $\times$ 6 時間ごと $\times$ 格子点数）で、
+$i$ はその 1 つ 1 つを指す。
+2 つの語の意味は \ref{sec:val-what} 節のとおりである。
+
+平方根で戻すので\textbf{単位は元のデータと同じ}になる。
+本章の RMSE が \si{\kilo\metre} で書かれているのはそのためで、
+「\SI{64}{\kilo\metre}」は「落下点の予測が典型的に \SI{64}{\kilo\metre} 外れる」と読んでよい。
+
+\begin{whybox}{なぜ二乗するのか、なぜ絶対値ではないのか}
+誤差をそのまま平均すると、東に \SI{50}{\kilo\metre} のずれと
+西に \SI{50}{\kilo\metre} のずれが打ち消し合ってゼロになってしまう。
+二乗すれば符号が消えるので、打ち消し合わない。
+
+符号を消すだけなら絶対値の平均でもよい。
+二乗を選ぶと、\textbf{大きな誤差ほど重く数えられる}という違いが出る。
+\SI{10}{\kilo\metre} の誤差 4 回より、\SI{40}{\kilo\metre} の誤差 1 回のほうが悪く評価される。
+
+スペースバルーンの回収では、この重みづけのほうが実情に合う。
+たいていは近くに落ちるが年に一度 \SI{200}{\kilo\metre} 先に落ちる予測は、
+いつも \SI{20}{\kilo\metre} ずれる予測より扱いに困る。
+\end{whybox}
+
+落下位置は東西と南北を持つ 2 次元の量なので、ここでは\textbf{ベクトル RMSE}を使う。
+東に \SI{10}{\kilo\metre}、北に \SI{10}{\kilo\metre} ずれたとき、
+これは \SI{14}{\kilo\metre} の誤差 1 個であって、\SI{10}{\kilo\metre} の誤差 2 個ではない。
+そこで 2 成分の二乗を成分間で平均せずに\textbf{足してから}平方根をとる
+（\texttt{stats/timescale.py} の \texttt{\_sq\_err}）。
+成分ごとに平均してしまうと、答えが $\sqrt{2}$ 倍だけ小さく出る。
+つまりここでいうベクトル RMSE は、
+\textbf{予測落下点と実際の落下点の直線距離}を二乗平均したものである。
+
+\paragraph{スキル}
+RMSE は \si{\kilo\metre} なので、領域どうしを比べにくい。
+和歌山の \SI{64}{\kilo\metre} と北海道の \SI{78}{\kilo\metre} を並べても、
+そもそも飛ぶ距離が違うので、どちらの気候値が役に立っているかは分からない。
+
+そこで\textbf{何も知らない場合からの改善率}に直す。
+
+\begin{equation}
+\text{スキル} = 1 - \frac{\mathrm{RMSE}}{\mathrm{RMSE}_{\text{季節を知らない場合}}}
+\label{eq:skill}
+\end{equation}
+
+スキル 0 は「時期を知っても何も改善しない」、
+スキル 1 は「誤差がゼロになる」を意味する。
+本章で「誤差削減 \SI{46}{\percent}」と書いてあるのはスキル \num{0.46} のことである。
+
+基準となる「季節を知らない場合」は、\textbf{常に 1 年を 1 つのビンにした予測}、
+つまり 10 年間の平均落下点をいつでも答えるモデルに固定してある
+（\texttt{timescale.py:305-309}）。
+比べるビン幅の一覧の中でいちばん粗いものを基準にすると、
+一覧を変えるたびに基準が動いて、別々の実行を比べられなくなるためである。
+
+\begin{whybox}{スキルは 1 にならない}
+同じ 3 月前半でも、年によって、日によって天気は違う。
+気候値は「そのビンのふつう」しか答えられないので、
+当日の天気で決まる分の誤差は、どれだけビンを細かくしても残る。
+
+\ref{sec:val-variance} 節で見るように、この下限はかなり高いところにある。
+最良の粒度でも説明できるのは落下位置の分散の \SI{70}{\percent}（和歌山）、
+\SI{72}{\percent}（愛媛）、\SI{30}{\percent}（北海道）で、残りは原理的に説明できない。
+\end{whybox}
+
+\subsection{手法が壊れていないことを先に確かめる}
+\label{sec:val-placebo}
+
+検定が甘ければ、ノイズにも「信号がある」と答えてしまう。
+そこで結果を見る前に、\textbf{曜日}を予測変数にして同じ手続きを回した。
+
+自由大気は今日が月曜か火曜かを知らない。
+したがって曜日には、原理的にスキルが出てはならない。
+
+\begin{table}[H]
+\centering
+\caption{曜日プラセボ検定。ここに 0 でない値が出たら、以下の結果は信用できない。}
+\begin{tabular}{lr}
+\toprule
+領域 & 曜日のスキル \\
+\midrule
+北海道 & $-0.0002$ \\
+和歌山 & $-0.0001$ \\
+愛媛 & $-0.0001$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+3 領域とも絶対値が $0.0002$ 以下である。検定は甘くない。
+
+同じ仕組みが\textbf{検出力}を持つことも確かめてある。
+合成データに曜日依存の信号を人工的に埋めると、スキル 0.9 以上で検出する
+（\texttt{tests/test\_timescale.py}）。
+つまり上の 0 は「何も検出できない鈍い手法」の結果ではなく、
+「検出できる手法が、正しく何も見つけなかった」結果である。
+
+\subsection{答え}
+\label{sec:val-answer}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{validation/V1-wakayama_skill_curve.pdf}
+\caption[和歌山の解像度曲線]{和歌山。左が全範囲、右が \num{61} 日以下の拡大。
+灰色の破線が訓練誤差、青が検証誤差。
+訓練誤差は細かくするほど下がり続けるのに、検証誤差は底を打って上がる。
+この開きが過適合である。帯は最良との差の $\pm 2$ 標準誤差で、
+\num{10} 回の 1 年抜きから作った\textbf{対応のある}比較の不確かさである
+（\ref{sec:val-folds} 節）。年ごとの成績のばらつきではない。}
+\label{fig:v1-wakayama}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{validation/V1-hokkaido_skill_curve.pdf}
+\caption[北海道の解像度曲線]{北海道。同じ形だが、底が浅い。
+季節を知ることで減らせる誤差が和歌山よりずっと小さい。}
+\label{fig:v1-hokkaido}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{validation/V1-ehime_skill_curve.pdf}
+\caption[愛媛の解像度曲線]{愛媛。和歌山とほぼ同じ形で、
+\num{7} 日と \num{15} 日が並んで底をつくり、\num{30} 日で上がり始める。}
+\label{fig:v1-ehime}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{時間解像度の答え。誤差は落下位置のベクトル RMSE。}
+\begin{tabular}{lrrr}
+\toprule
+ & 北海道 & 和歌山 & 愛媛 \\
+\midrule
+季節情報なしの誤差 [\si{\kilo\metre}] & 93.6 & 118.2 & 118.7 \\
+到達できる最小誤差 [\si{\kilo\metre}] & 78.1 & 64.9 & 63.2 \\
+誤差の削減 & 17 \% & \textbf{45 \%} & \textbf{47 \%} \\
+分散でいえば & 30 \% & \textbf{70 \%} & \textbf{72 \%} \\
+\midrule
+最良のビン幅 & 15 日 & 15 日 & 15 日 \\
+\textbf{区別できないビン幅の範囲} & \textbf{7--30 日} & \textbf{5--15 日} & \textbf{5--15 日} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+同じ 10 年で全部のビン幅を評価しているので、
+ビン幅どうしの比較は\textbf{対応のある}比較になる。
+年ごとの誤差のばらつき（\SI{3}{}--\SI{5}{\kilo\metre}）よりはるかに細かく判定できる。
+
+\begin{whybox}{同点のときは粗いほうを採る}
+検証誤差の曲線は最小点の近くで平らである。
+たとえば和歌山の \num{7} 日と \num{15} 日は \SI{0.00}{\kilo\metre} 差で並ぶ。
+このとき単純に最小値を取ると、たまたま小数第 3 位が小さかったほうを
+「データから読み取れる最も細かい幅」として報告してしまう。
+
+そこで交差検証の慣例である\textbf{1 標準誤差ルール}を使った。
+最小値から 1 標準誤差以内に収まるもののうち、\textbf{最も粗いもの}を採る。
+粗いほうがデータに対して弱い主張をしており、
+区別できない 2 つのうち強いほうを選ぶ理由がないからである。
+
+本章の「区別できないビン幅の範囲」はこの基準で決めている。
+\end{whybox}
+
+\begin{table}[H]
+\centering
+\caption{最良のビン幅との差（対応のある比較）。
+SE の 2 倍を超えていれば区別できる。太字が本報告の採用値。
+3 領域とも 15 日が最良なので差はゼロになる。}
+\begin{tabular}{lrrrrrr}
+\toprule
+ & \multicolumn{2}{c}{北海道} & \multicolumn{2}{c}{和歌山} & \multicolumn{2}{c}{愛媛} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+ビン幅 & 差 [\si{\kilo\metre}] & SE の倍数 & 差 [\si{\kilo\metre}] & SE の倍数 & 差 [\si{\kilo\metre}] & SE の倍数 \\
+\midrule
+1 日（日）  & $+2.22$ & $+6.9$ & $+1.50$ & $+6.5$ & $+1.46$ & $+6.4$ \\
+7 日（週）  & $+0.29$ & $+1.4$ & $+0.00$ & $+0.0$ & $+0.02$ & $+0.1$ \\
+\textbf{15 日（半月）} & $\mathbf{0.00}$ & $\mathbf{0.0}$ & $\mathbf{0.00}$ & $\mathbf{0.0}$ & $\mathbf{0.00}$ & $\mathbf{0.0}$ \\
+30 日（月） & $+0.08$ & $+0.5$ & $+1.61$ & $+5.4$ & $+1.74$ & $+5.8$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+読み取れることは 3 つある。
+
+\begin{itemize}
+  \item \textbf{日単位は、どの領域でも最良の幅より明らかに悪い。}
+        最良より $+6.4$ から $+6.9$ 標準誤差ぶん悪い。
+        1 日ビンには 10 年ぶんでも 40 標本しか入らず、
+        自己相関を考えれば実質 7 標本程度である。
+  \item \textbf{和歌山と愛媛では月では粗すぎる。} 月単位は最良より $+5.4$ SE（和歌山）、
+        $+5.8$ SE（愛媛）悪い。
+        亜熱帯ジェットの南北移動が速いためで、
+        月単位で平均すると遷移期の変化が消えてしまう。
+  \item \textbf{北海道では月で足りる。} 月単位は最良と $+0.5$ SE、すなわち区別できない。
+        \textbf{北海道について週単位の統計を作っても、月単位より予測がよくなるわけではない。}
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{validation/V6_region_comparison.pdf}
+\caption[3 領域の比較]{左は絶対誤差、右は季節情報なしと比べた改善率。
+和歌山と愛媛は下げ幅が大きく底も鋭く、2 本の曲線はほとんど重なる。
+北海道は全体に平坦で、月から週へ動かしても何も変わらない。
+点線は 1 日・週・月の位置である。}
+\label{fig:v6}
+\end{figure}
+
+\subsection{ビンではなく滑らかな曲線で見る}
+\label{sec:val-harmonic}
+
+ここまではビン幅を変えて比べてきた。しかしビンという形そのものにも
+疑う余地がある。そこで\textbf{まったく別の形のモデル}を同じ土俵に乗せた。
+
+\subsubsection{2 つのモデルを式で並べる}
+
+ビンによる気候値は、こう書ける。$d$ を年内通日、$\hat{\mathbf{y}}(d)$ を
+その日の落下位置の予測とすると、
+
+\begin{equation}
+  \hat{\mathbf{y}}_\text{ビン}(d) = \sum_{b=1}^{B} \mathbf{c}_b \, \mathbf{1}[\,d \in \text{ビン } b\,],
+  \qquad B = \left\lceil \frac{365}{w} \right\rceil
+  \label{eq:bin-model}
+\end{equation}
+
+$\mathbf{1}[\cdot]$ は「その日がビン $b$ に入れば 1、そうでなければ 0」。
+$\mathbf{c}_b$ はビン $b$ の平均落下位置で、これが推定するパラメータである。
+つまり\textbf{階段関数}であり、$w = 7$ 日なら段が $B = 52$ 個できる。
+
+調和回帰は、同じものを三角関数の和で書く。
+
+\begin{equation}
+  \hat{\mathbf{y}}_\text{調和}(d) = \mathbf{a}_0
+    + \sum_{j=1}^{K}\Bigl[\,\mathbf{a}_j \cos\bigl(2\pi j\, \tfrac{d}{365}\bigr)
+    + \mathbf{b}_j \sin\bigl(2\pi j\, \tfrac{d}{365}\bigr)\Bigr]
+  \label{eq:harmonic-model}
+\end{equation}
+
+$j = 1$ が 1 年周期、$j = 2$ が半年周期、というように $j$ 番目が
+年を $j$ 等分する周期を表す。推定するのは $\mathbf{a}_0, \dots, \mathbf{a}_K,
+\mathbf{b}_1, \dots, \mathbf{b}_K$ の $2K + 1$ 組である。
+実装は \texttt{timescale.py} の \texttt{harmonic\_design} で、
+式\eqref{eq:harmonic-model} の右辺の列を並べた行列を作り、最小二乗で解く。
+
+\begin{whybox}{これはフーリエ「変換」ではない}
+FFT は手元の信号を周波数に分解する道具で、予測はしない。
+ここでやっているのは\textbf{回帰}である。
+式\eqref{eq:harmonic-model} を 9 年ぶんのデータに最小二乗で当てはめ、
+残した 1 年を予測させ、その誤差を測る。
+ビンのときとまったく同じ 1 年抜き交差検証（\ref{sec:val-folds} 節）にかける。
+
+式\eqref{eq:bin-model} も式\eqref{eq:harmonic-model} も、
+\textbf{どちらも「$d$ の関数を基底の線形結合で表す線形モデル」}である。
+違うのは基底だけで、前者は矩形波、後者は三角関数。
+同じ土俵に乗るからこそ、誤差を直接比べられる。
+\end{whybox}
+
+\subsubsection{なぜこれを見る必要があったか}
+
+理由が 4 つある。
+
+\paragraph{1. ビンの切り位置が恣意的である。}
+式\eqref{eq:bin-model} の $\mathbf{1}[\cdot]$ は、1・8・15・22 日で切ると
+決めた瞬間に定まる。大気にはその日付に何も起きていない。
+位相を 3 日ずらせば、同じ「7 日幅」でも別の数字が出る。
+つまりビンの掃引では、\textbf{幅の効果と切り位置の効果が分離できない}。
+式\eqref{eq:harmonic-model} には境界が 1 つもないので、この任意性がない。
+
+\paragraph{2. 幅が飛び飛びにしか試せない。}
+掃引したのは \num{1}、\num{2}、\num{3}、\num{5}、\num{7}、\num{10}、\num{15}、\num{30}、\num{61}、\num{91}、\num{365} 日の 11 点だけである。
+一方 $K$ は 0 から 26 まで 1 刻みで動かせる。
+$K$ 次までの調和が表せる最短のスケールは
+
+\begin{equation}
+  \tau(K) = \frac{365}{2K}\ \text{日}
+  \label{eq:harmonic-resolution}
+\end{equation}
+
+で（$\tau$ より短い変動は $K$ 次までの和では作れない）、
+$K = 6$ なら \num{30} 日、$K = 12$ なら \num{15} 日、$K = 26$ なら \num{7} 日にあたる。
+分母の 2 はナイキストの関係で、1 周期を表すには山と谷の 2 点が要ることによる。
+
+\paragraph{3. パラメータの数で比べられる。}
+この比較で結論が決まった。
+
+\begin{table}[H]
+\centering
+\caption{同じ時間分解能を得るのに要るパラメータ数（1 成分あたり）。
+落下位置は 2 成分なので実際はこの 2 倍。}
+\label{tab:param-count}
+\begin{tabular}{@{}lrlr@{}}
+\toprule
+\multicolumn{2}{c}{ビン} & \multicolumn{2}{c}{調和} \\
+\cmidrule(lr){1-2}\cmidrule(lr){3-4}
+幅 [日] & $B$ 個 & 次数 & $2K+1$ 個 \\
+\midrule
+30 & 12 & $K = 6$  & 13 \\
+15 & 24 & $K = 12$ & 25 \\
+7  & 52 & $K = 26$ & 53 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+同じ分解能なら数はほぼ同じである。
+ところが\textbf{必要な分解能が違った}。
+調和は $K = 6$（パラメータ 13 個）で頭打ちになるのに、
+ビンは \num{15} 日（24 個）まで細かくしないと最小にならない。
+少ない自由度で同等以上の精度が出るということは、
+\textbf{実在する構造が滑らかだ}という証拠になる。
+
+\paragraph{4. 階段関数は物理的に正しくない。}
+季節変化は連続である。式\eqref{eq:bin-model} は境界ごとに不連続を主張しており、
+その主張が害になっていないかを確かめる必要があった。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\linewidth]{validation/V2-wakayama_harmonic.pdf}
+\caption[調和解析（和歌山）]{和歌山。上軸が分解できる時間スケール。
+$K$ = 3--6 で頭打ちになり、それ以上は増やしても検証誤差が下がらない。}
+\label{fig:v2-wakayama}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\linewidth]{validation/V2-hokkaido_harmonic.pdf}
+\caption[調和解析（北海道）]{北海道。曲線の形は和歌山と同じで、
+頭打ちになる位置もほぼ同じ（$K = 5$ と $K = 6$）である。
+違うのは下げ幅で、$K = 0$ の \SI{93.6}{\kilo\metre} から
+\SI{77.5}{\kilo\metre}（$-17$ \%）までしか下がらない。
+和歌山は \SI{118.2}{\kilo\metre} から \SI{64.2}{\kilo\metre}（$-46$ \%）である。
+縦軸の範囲が 2 図で違う点に注意。}
+\label{fig:v2-hokkaido}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\linewidth]{validation/V2-ehime_harmonic.pdf}
+\caption[調和解析（愛媛）]{愛媛。$K = 5$（分解能 \num{36} 日）で頭打ちになり、
+\SI{118.7}{\kilo\metre} から \SI{62.4}{\kilo\metre}（$-47$ \%）まで下がる。
+形も深さも和歌山とほぼ同じである。}
+\label{fig:v2-ehime}
+\end{figure}
+
+\subsubsection{結果}
+
+和歌山の最良は $K = 6$（式\eqref{eq:harmonic-resolution} で分解能 \num{30} 日）で、
+そのときの検証誤差は \SI{64.2}{\kilo\metre}。
+これは\textbf{どのビン幅よりも小さい}（最良のビンは \SI{64.9}{\kilo\metre}）。
+北海道も同様で、$K = 5$（分解能 \num{36} 日）の \SI{77.5}{\kilo\metre} が
+最良のビン（\SI{78.1}{\kilo\metre}）を下回る。
+愛媛も $K = 5$ の \SI{62.4}{\kilo\metre} が最良のビン（\SI{63.2}{\kilo\metre}）を下回る。
+
+3 つの図を並べると、領域の違いが曲線の\textbf{深さ}だけにあることが分かる。
+頭打ちになる $K$ が 5 と 6 でほとんど変わらないので、
+実在する季節変化の\textbf{時間スケール}は 3 領域で共通である。
+違うのは、その季節変化がどれだけ落下位置を決めているかである。
+和歌山と愛媛は季節を知ることで誤差が 46--47 \% 減るのに対し、北海道は 17 \% しか減らない。
+北海道では残りを日々の天気が決めている。
+
+\begin{whybox}{週ビンは「週の構造」を捉えているのではない}
+滑らかな 6 次の曲線のほうが、\num{7} 日ビンより少ないパラメータで、
+しかもよい精度を出す。
+
+つまり実在するのは\textbf{約 1--2 か月スケールの滑らかな季節変化}であって、
+週に固有の構造ではない。
+週ビンはその滑らかな曲線を階段で近似しているにすぎず、
+階段を細かくすれば曲線に近づくが、曲線そのものを使うほうが効率がよい。
+
+「週単位の傾向がある」という言い方は正確ではない。
+正しくは「\textbf{1--2 か月スケールの季節変化があり、
+それを週ビンで表現することもできる}」である。
+\end{whybox}
+
+\subsection{高度によって答えが違う}
+\label{sec:val-level}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{validation/V3-wakayama_by_level.pdf}
+\caption[高度別（和歌山）]{左は気候値がどれだけ誤差を減らすか、
+右は最適なビン幅（帯は最適と区別できない範囲）。
+左の横軸は図\ref{fig:v3-hokkaido} と共通の \SI{60}{\percent} までにしてある。
+図ごとに目盛りを自動で決めると、各領域の最良の棒がどちらもパネル一杯になり、
+2 つの図を見比べても差が分からなくなるためである。}
+\label{fig:v3-wakayama}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{validation/V3-hokkaido_by_level.pdf}
+\caption[高度別（北海道）]{北海道。横軸は図\ref{fig:v3-wakayama} と共通なので、
+棒の長さをそのまま比べられる。
+どの高度でも和歌山より短く、\SI{100}{\hecto\pascal} と \SI{30}{\hecto\pascal} で
+ようやく 2 割を超える程度である。
+右の帯は和歌山より幅が広く、最適なビン幅が絞り込めていない。}
+\label{fig:v3-hokkaido}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{validation/V3-ehime_by_level.pdf}
+\caption[高度別（愛媛）]{愛媛。横軸は図\ref{fig:v3-wakayama} と共通である。
+棒の長さも右の帯も、和歌山とほぼ同じになる。}
+\label{fig:v3-ehime}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{高度別の誤差削減（風ベクトル）}
+\begin{tabular}{lrrr}
+\toprule
+気圧面 & 北海道 & 和歌山 & 愛媛 \\
+\midrule
+850 hPa（約 \SI{1.5}{\kilo\metre}） & 4 \% & 6 \% & 6 \% \\
+500 hPa（約 \SI{5.5}{\kilo\metre}） & 5 \% & 23 \% & 24 \% \\
+200 hPa（約 \SI{12}{\kilo\metre}）  & 7 \% & 38 \% & 39 \% \\
+100 hPa（約 \SI{16}{\kilo\metre}）  & 23 \% & \textbf{49 \%} & \textbf{50 \%} \\
+30 hPa（約 \SI{24}{\kilo\metre}）   & 24 \% & 36 \% & 37 \% \\
+10 hPa（約 \SI{31}{\kilo\metre}）   & 10 \% & 22 \% & 23 \% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{地上付近の風は、季節からほとんど予測できない。}
+\SI{850}{\hecto\pascal} での誤差削減は 4--6 \% しかない。
+
+これは運用に直結する。
+\textbf{打ち上げ時の地上風は、本統計ではなく当日の予報で判断しなければならない。}
+本統計が役に立つのは上空、特に \SIrange{16}{24}{\kilo\metre} 付近である。
+
+北海道の値が全体に小さいことにも注意が要る。
+\SI{200}{\hecto\pascal} で 7 \% しかないので、
+\textbf{北海道上空の対流圏の風は、時期を知ってもほとんど予測できない}。
+落下位置の削減が 17 \% あるのは、全層を積算する過程でノイズが打ち消し合うためである。
+
+\subsection{季節によって答えが違う}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{validation/V4-wakayama_by_season.pdf}
+\caption[季節別（和歌山）]{各季節の\textbf{中で}、時期を細かく知ることの価値。
+基準はその季節の平均である。
+左の横軸は図\ref{fig:v4-hokkaido}・\ref{fig:v4-ehime} と共通の \SI{40}{\percent} までである。}
+\label{fig:v4-wakayama}
+\end{figure}
+
+和歌山では、季節の中で時期を細かく知る価値が季節によって大きく違う。
+
+\begin{table}[H]
+\centering
+\caption{和歌山：季節の中で時期を知る価値}
+\begin{tabular}{lrr}
+\toprule
+季節 & 最適なビン幅 & 季節内での誤差削減 \\
+\midrule
+冬 (12--2 月) & 365 日（＝区別できない） & \textbf{0 \%} \\
+春 (3--5 月)  & 30 日 & 8 \% \\
+夏 (6--8 月)  & 5 日 & 26 \% \\
+秋 (9--11 月) & 7 日 & \textbf{34 \%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{冬の中では、時期を細かく知っても何も得られない。}
+1 月上旬か 2 月下旬かを区別しても、落下位置の予測は改善しない。
+冬はジェットが安定して強い平坦な高原状態で、
+その中の違いは日々の天気の変動に埋もれている。
+
+一方、秋は 34 \%、夏は 26 \% の改善がある。
+季節が速く移り変わる時期には、週の違いで予測がよくなる。
+
+\textbf{「週単位の統計が要るのは遷移期であって、冬ではない」}というのが結論である。
+
+愛媛もまったく同じ形になる（図\ref{fig:v4-ehime}）。
+冬 0 \%、春 9 \%、夏 27 \%、秋 37 \% で、最適なビン幅も夏と秋が 7 日である。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{validation/V4-ehime_by_season.pdf}
+\caption[季節別（愛媛）]{愛媛。横軸は図\ref{fig:v4-wakayama} と共通である。}
+\label{fig:v4-ehime}
+\end{figure}
+
+北海道では、そもそもどの季節でも季節内の改善が小さい。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{validation/V4-hokkaido_by_season.pdf}
+\caption[季節別（北海道）]{北海道。横軸は図\ref{fig:v4-wakayama} と共通である。
+和歌山では秋が \SI{34}{\percent}、愛媛では \SI{37}{\percent} まで伸びるのに対し、
+北海道はどの季節も \SI{5}{\percent} 台にとどまる。
+季節の\textbf{中で}時期を細かく知っても、落下位置の予測はどの季節でも改善しない。}
+\label{fig:v4-hokkaido}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{北海道：季節の中で時期を知る価値}
+\begin{tabular}{lrr}
+\toprule
+季節 & 最適なビン幅 & 季節内での誤差削減 \\
+\midrule
+冬 (12--2 月) & 5--365 日（区別できない） & 1 \% \\
+春 (3--5 月)  & 5--365 日（区別できない） & 2 \% \\
+夏 (6--8 月)  & 7--30 日 & 5 \% \\
+秋 (9--11 月) & 3--91 日 & 5 \% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{有意であることと、役に立つことは別}
+\label{sec:val-significance}
+
+北海道について、3 つの手法が一見食い違う答えを出した。
+
+\begin{table}[H]
+\centering
+\caption{「週は月に情報を加えるか」への 3 つの答え（北海道）}
+\begin{tabular}{llr}
+\toprule
+手法 & 何を測っているか & 答え \\
+\midrule
+ブロック順列検定 & 週ラベルが情報をまったく持たない確率 & $p = 0.010$ \\
+対応のある交差検証 & 週にすると予測がどれだけ良くなるか & $+0.5$ SE（改善なし） \\
+月内残差の半分割相関 & 別の 10 年でも同じ週の構造が出るか & $r = +0.19$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+矛盾ではない。三者は違うことを測っている。
+
+順列検定が言っているのは「週ラベルの効果はゼロではない」である。
+標本が 14{,}610 個あれば、どんなに小さな効果でも有意になる。
+交差検証が言っているのは「その効果は小さすぎて予測を改善しない」である。
+半分割相関が言っているのは「その小さな構造は別の 10 年では再現しない」である。
+
+\begin{whybox}{$p$ 値だけを見てはいけない理由}
+もし順列検定だけを行っていたら、
+「北海道でも週単位に有意な傾向がある（$p = 0.010$）」と報告していただろう。
+それは誤りではないが、\textbf{読み手に誤解を与える}。
+実際には、週単位にしても落下位置の予測は月単位より改善しない（最良との差は週 \SI{0.29}{\kilo\metre}、月 \SI{0.08}{\kilo\metre}）。
+
+本章で検定ではなくモデル選択（交差検証）を主軸に据えたのは、
+この区別をつけるためである。
+和歌山では 3 つの手法が揃って「月では粗い」と答える（$p = 0.002$、
+交差検証 $+5.4$ SE で月が劣る、残差相関 $r = +0.54$）。
+愛媛も同じく揃う（$p = 0.002$、$+5.8$ SE、$r = +0.55$）。
+北海道では揃わない。これは、週単位の効果が統計的には検出できても、予測には役立たない大きさだということを示している。
+\end{whybox}
+
+\subsection{気候値で説明できる範囲}
+\label{sec:val-variance}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\linewidth]{validation/V5-wakayama_variance.pdf}
+\caption[分散分解（和歌山）]{和歌山。落下位置の分散のうち、気候値が説明する割合。
+残りは当日の天気である。
+\textbf{ビンを細かくするほど割合が増えている}が、これは手元の 10 年への
+あてはまりであって、予測が良くなったことを意味しない。
+同じ 10 年で測っているので、パラメータを増やせば必ず増える。
+交差検証（図\ref{fig:v1-wakayama}）が必要だったのはこのためである。
+本文の 70 \% は交差検証で測った値（\SI{69.9}{\percent}）で、
+この図の \SIrange{69}{74}{\percent} とは別の量である。
+和歌山では両者がほぼ一致する。}
+\label{fig:v5-wakayama}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\linewidth]{validation/V5-hokkaido_variance.pdf}
+\caption[分散分解（北海道）]{北海道。横軸は和歌山と同じ \SIrange{0}{100}{\percent} である。
+気候値が説明するのは \SIrange{32}{39}{\percent} で、
+和歌山の \SIrange{69}{74}{\percent} の半分以下にとどまる。
+落下位置の 3 分の 2 を当日の天気が決めているということで、
+気候値でできることの上限がそもそも低い。
+なお本文の 30 \% は交差検証で測った値（\SI{30.3}{\percent}）で、
+この図の値より低い。
+和歌山では両者がほぼ一致するのに北海道では開くこと自体が、
+細かいビンのあてはまりが別の年には持ち越せていない証拠である。}
+\label{fig:v5-hokkaido}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\linewidth]{validation/V5-ehime_variance.pdf}
+\caption[分散分解（愛媛）]{愛媛。気候値が説明するのは \SIrange{71}{75}{\percent} で、
+和歌山とほぼ同じである。交差検証で測った値は \SI{72}{\percent}。}
+\label{fig:v5-ehime}
+\end{figure}
+
+最良の粒度でも、説明できるのは分散の 70 \%（和歌山）、72 \%（愛媛）、30 \%（北海道）である。
+残りは当日の総観規模の天気で決まり、気候値では原理的に説明できない。
+
+\textbf{気候値は計画のための道具であって、予報の代わりではない。}
+和歌山の落下位置は、時期を知ることで散らばりが
+\SI{118}{\kilo\metre} から \SI{65}{\kilo\metre} に縮むが、
+\SI{65}{\kilo\metre} は残る。愛媛でも \SI{119}{\kilo\metre} から \SI{63}{\kilo\metre} で、
+やはり \SI{63}{\kilo\metre} は残る。
+
+\subsection{この検証で前章までの結果はどう変わるか}
+
+結論として、本報告の集計単位は\textbf{半月}（15 日）とした。
+そのうえで次の点を明示する。
+
+\begin{itemize}
+  \item \textbf{和歌山と愛媛の半月単位の統計には、データの裏付けがある}（月より有意に良い）。
+  \item \textbf{北海道の半月単位の統計は、月単位と区別できない}。
+        半月ごとの細かい違いは読み取らないこと。
+  \item \textbf{日単位の統計は作らない}。3 領域とも最良の幅より明らかに悪い。
+  \item \textbf{冬の半月ごとの違いは読み取らない}。季節の中では区別できない。
+  \item \textbf{地上付近の風にこの統計を使わない}。誤差削減が 5 \% 前後しかない。
+\end{itemize}
+
+第 \ref{sec:limits} 章に、この検証を踏まえた限界の一覧を置いた。

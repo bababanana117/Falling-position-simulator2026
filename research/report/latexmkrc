@@ -1,0 +1,4 @@
+$pdf_mode = 4;              # lualatex
+$lualatex = 'lualatex -interaction=nonstopmode -halt-on-error %O %S';
+$bibtex_use = 2;
+$clean_ext = 'run.xml bbl synctex.gz';
