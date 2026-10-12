@@ -8,8 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vitest",
-    "deploy:cf": "npm run build && npx wrangler deploy"
+    "test": "vitest"
   },
   "dependencies": {
     "@navaramap/three": "^0.1.1",
