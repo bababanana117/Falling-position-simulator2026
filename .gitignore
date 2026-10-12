@@ -1,2 +1,10 @@
 node_modules/
 
+
+# Research work lives on the research/wind-climatology branch. Large local files
+# (DuckDB, archives, videos, caches) stay on disk; the backend reads the DuckDB from v2/.
+research/
+slide/
+blog/
+video/
+v2/
