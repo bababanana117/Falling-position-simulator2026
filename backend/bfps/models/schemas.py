@@ -109,3 +109,46 @@ class OptimizeResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     version: str
+
+
+class ClimatologyRequest(BaseModel):
+    launch_latitude: float = Field(ge=-90, le=90)
+    launch_longitude: float = Field(ge=-180, le=360)
+    launch_altitude: float = 0.0
+    launch_datetime: datetime
+    ascent_rate: float = Field(gt=0, le=15)
+    burst_altitude: float = Field(gt=1000, le=45000)
+    descent_rate: float = Field(gt=0, le=30)
+    n_samples: int = Field(default=500, ge=10, le=2000)
+    seed: int | None = 42
+
+
+class TimebinOut(BaseModel):
+    month: int
+    bin: int
+    label: str
+    period: str
+
+
+class CellOut(BaseModel):
+    latitude: float
+    longitude: float
+    distance_km: float
+
+
+class LatLonOut(BaseModel):
+    latitude: float
+    longitude: float
+
+
+class ClimatologyResponse(BaseModel):
+    timebin: TimebinOut
+    cell: CellOut
+    mean_landing: LatLonOut
+    covariance_m2: list[list[float]]
+    rho: float
+    samples: list[list[float]]
+    trajectory: list[TrajectoryPointOut]
+    burst_index: int
+    flight_time_s: float
+    warnings: list[str] = []
