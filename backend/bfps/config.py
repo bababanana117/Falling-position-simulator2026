@@ -3,8 +3,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     allowed_origins: list[str] = [
-        "https://wasa-rockoon.github.io",
-        "https://ddd3h.github.io",
+        "https://cusf2026.ddd3h.com",
         "http://localhost:5173",
         "http://localhost:8080",
     ]
