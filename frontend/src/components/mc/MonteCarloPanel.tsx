@@ -55,7 +55,9 @@ export function MonteCarloPanel() {
     return <p>モンテカルロは標準プロファイルのみ対応です</p>
   }
 
-  const maxSamples = isClimatology ? 2000 : MC_MAX_SAMPLES
+  // 統計モードも標高API(Open-Meteo)の1分あたりのレート制限に当たるため、
+  // 試行回数の上限は通常モードと同じMC_MAX_SAMPLES(500)にする
+  const maxSamples = MC_MAX_SAMPLES
 
   return (
     <div className="mc-panel">
@@ -64,7 +66,7 @@ export function MonteCarloPanel() {
         <p className="mc-note">
           統計モード: 7 日より先なので、予報の代わりに 2016–2025 年の統計風で計算します。
           散らばりは風のばらつきから出すため、下の上昇速度などのばらつきは使いません
-          (試行回数は最大 2000)。
+          (試行回数は最大 500)。
         </p>
       )}
       <label>

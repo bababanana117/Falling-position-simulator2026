@@ -160,7 +160,12 @@ export function useMonteCarlo() {
     results.clearAll()
     results.setRunning(true)
     try {
-      const req = buildClimatologyRequest(Math.min(2000, Math.max(10, nSamples)), seed)
+      // 統計モードも標高API(Open-Meteo)の1分あたりのレート制限に当たるため、
+      // フロント側の上限は通常モードと同じMC_MAX_SAMPLESにする (バックエンドのn_samples上限2000は変えない)
+      const req = buildClimatologyRequest(
+        Math.min(MC_MAX_SAMPLES, Math.max(10, nSamples)),
+        seed,
+      )
       const res = await requestClimatology(req, { signal: controller.signal })
       if (climGenRef.current !== myGen) return // キャンセル済み/上書き済み
       const store = useResultsStore.getState()
