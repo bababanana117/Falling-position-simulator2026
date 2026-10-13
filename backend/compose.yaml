@@ -1,8 +1,11 @@
-# バックエンド（FastAPI）と Caddy（HTTPS の終端）をまとめて起動する。
-#   1. 統計風 DuckDB を /srv/clim/ に置く
-#   2. DNS で api.cusf2026.ddd3h.com をこのサーバーへ向ける（Cloudflare なら DNS only）
-#   3. このディレクトリで `docker compose up -d --build`
-# Caddy が Let's Encrypt の証明書を自動で取り、更新する。80/443 番を開けておくこと。
+# バックエンド（FastAPI）を起動する。統計風 DuckDB は /srv/clim/ に置く。
+#
+# 既定（docker compose up -d --build）: api だけを起動し、127.0.0.1:8080 で待つ。
+#   80/443 番を使っている nginx などから転送する（nginx/api.cusf2026.ddd3h.com.conf）。
+#   ホスト側のポートは BFPS_HOST_PORT で変えられる（例: BFPS_HOST_PORT=18080）。
+#
+# 80/443 番が空いているサーバー（docker compose --profile caddy up -d --build）:
+#   Caddy も起動し、Let's Encrypt の証明書を自動で取って HTTPS を受ける（Caddyfile）。
 services:
   api:
     build: .
@@ -11,8 +14,12 @@ services:
       BFPS_CLIMATOLOGY_DB: /data/jra3q_japan_wind_2016-2025_v2.duckdb
     volumes:
       - /srv/clim:/data:ro
+    ports:
+      # 127.0.0.1 に限るので、外から直接はつながらない
+      - "127.0.0.1:${BFPS_HOST_PORT:-8080}:8080"
   caddy:
     image: caddy:2
+    profiles: ["caddy"]
     restart: unless-stopped
     ports:
       - "80:80"

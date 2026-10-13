@@ -150,21 +150,40 @@ Gitで管理していない。バックエンドを動かすサーバーに別�
 - ``api.cusf2026.ddd3h.com`` ではなく ``api-cusf2026.ddd3h.com`` のような
   1階層目のサブドメインにする
 
-このリポジトリでは前者を選び、次の Docker Compose の構成で Caddy に
-証明書を取らせる。
+このリポジトリでは前者を選び、サーバー側で証明書を取る。
 
 Docker Composeで動かす
 ~~~~~~~~~~~~~~~~~~~~~~
 
-``backend/compose.yaml`` は2つのコンテナを起動する。
+``backend/compose.yaml`` は ``backend/Dockerfile`` からバックエンドの
+コンテナ ``api`` をビルドして起動する。
 
-- ``api``: ``backend/Dockerfile`` からビルドしたバックエンド。ホストの
-  ``/srv/clim`` を ``/data`` に読み取り専用でマウントし、
+- ホストの ``/srv/clim`` を ``/data`` に読み取り専用でマウントし、
   ``BFPS_CLIMATOLOGY_DB=/data/jra3q_japan_wind_2016-2025_v2.duckdb`` を渡す。
-  ポートはホストに公開しない。
-- ``caddy``: ``backend/Caddyfile`` に従って ``api.cusf2026.ddd3h.com`` への
-  HTTPS を受け、``api:8080`` へ転送する。Let's Encrypt の証明書は Caddy が
-  自動で取得・更新し、ボリューム ``caddy_data`` に保存する。
+- ポートは ``127.0.0.1:8080`` だけで待つ。外から直接はつながらないので、
+  同じサーバーのWebサーバー(nginxかCaddy)からHTTPSを受けて転送する。
+  ホスト側のポートは環境変数 ``BFPS_HOST_PORT`` で変えられる
+  (例: ``BFPS_HOST_PORT=18080 docker compose up -d``)。
+
+HTTPSを受けるWebサーバーは、サーバーの状況で選ぶ。
+
+.. list-table::
+   :header-rows: 1
+
+   * - サーバーの状況
+     - 使う設定
+     - 起動
+   * - 80/443番を既にnginxが使っている
+     - ``backend/nginx/api.cusf2026.ddd3h.com.conf`` をnginxに足し、
+       certbotで証明書を取る
+     - ``docker compose up -d --build``
+   * - 80/443番が空いている
+     - ``backend/Caddyfile`` (Caddyのコンテナが証明書を自動で取る)
+     - ``docker compose --profile caddy up -d --build``
+
+80/443番が使われているサーバーで ``--profile caddy`` を付けると、Caddyの
+起動が ``bind: address already in use`` で失敗する。使っているプログラムは
+``sudo ss -ltnp | grep -E ':80 |:443 '`` で確かめられる。
 
 サーバーで必要な準備と起動の手順は次のとおり。
 
@@ -173,22 +192,43 @@ Docker Composeで動かす
 3. DNSで ``api.cusf2026`` のAレコードをサーバーのIPアドレスに向ける。
    CloudflareのDNSを使う場合は、プロキシをオフ(灰色のクラウド、
    DNS only)にする。オンのままだと上記の理由でHTTPSが通らない。
-4. 統計風DuckDBをサーバーへコピーする。
+4. 統計風DuckDBをサーバーへコピーする。``sudo mkdir`` で作ったフォルダは
+   rootの持ち物で書き込めないので、先に持ち主を自分に変える。
 
    .. code-block:: bash
 
+      # サーバーで
       sudo mkdir -p /srv/clim
-      scp v2/jra3q_japan_wind_2016-2025_v2.duckdb server:/srv/clim/
+      sudo chown $USER:$USER /srv/clim
+      # 手元のPCから(1.9GBあるので、途中から再開できるrsyncが便利)
+      rsync -avP v2/jra3q_japan_wind_2016-2025_v2.duckdb server:/srv/clim/
 
-5. リポジトリを取得し、``backend/`` で起動する。
+5. リポジトリを取得し、``backend/`` でバックエンドを起動する。ビルドには
+   一時的に1GBほど使うので、ディスクの空きを2GB以上にしておく
+   (足りないと ``no space left on device`` で止まる。
+   ``docker system prune`` で古いイメージを消せる)。
 
    .. code-block:: bash
 
       git clone https://github.com/ddd3h/Falling-position-simulator2026.git
       cd Falling-position-simulator2026/backend
       docker compose up -d --build
+      curl localhost:8080/api/health     # {"status":"ok","version":"0.1.0"}
 
-6. 動作を確かめる。``{"status":"ok","version":"0.1.0"}`` が返れば、
+6. nginxを使う場合は、転送の設定を足して証明書を取る(Caddyを使う場合は
+   5. で ``--profile caddy`` を付ければよく、この手順は要らない)。
+
+   .. code-block:: bash
+
+      sudo cp nginx/api.cusf2026.ddd3h.com.conf /etc/nginx/sites-available/
+      sudo ln -s /etc/nginx/sites-available/api.cusf2026.ddd3h.com.conf /etc/nginx/sites-enabled/
+      sudo nginx -t && sudo systemctl reload nginx
+      sudo certbot --nginx -d api.cusf2026.ddd3h.com
+
+   certbotが443番の ``server`` ブロックと、80番からHTTPSへの転送を設定に
+   書き足す。証明書の更新もcertbotのタイマーが行う。
+
+7. 外から確かめる。``{"status":"ok","version":"0.1.0"}`` が返れば、
    バックエンドはHTTPSで公開できている。統計モードがDuckDBを読めるかは、
    フロントエンド (``https://cusf2026.ddd3h.com``) で8日以上先の日時を
    選んで実行すると分かる(読めないときは503のエラーが出る)。

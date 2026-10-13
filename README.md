@@ -6,7 +6,7 @@ CUSF/SondeHubのTawhiri予測APIをベースに、モンテカルロ確率分布
 ## 構成
 
 ```
-frontend/   React + TypeScript + Vite 製フロントエンド (GitHub Pages配信)
+frontend/   React + TypeScript + Vite 製フロントエンド (Cloudflare Workers配信)
 backend/    FastAPI 製バックエンド (大規模モンテカルロ・自前軌道計算・最適化、開発中)
 legacy/     旧jQuery版アプリ (参照用に保存)
 docs/       Sphinxドキュメント (仕組み解説 + 技術提案書)
@@ -94,18 +94,29 @@ VITE_API_BASE=http://localhost:8000 npm run dev
 ### バックエンドの公開（Docker）
 
 公開版のフロントエンドは `https://api.cusf2026.ddd3h.com` のバックエンドを呼ぶ。
-サーバーでは `backend/compose.yaml` がバックエンドと Caddy を起動し、Caddy が
-Let's Encrypt の証明書を自動で取る。
+サーバーでは `backend/compose.yaml` がバックエンドを起動し、`127.0.0.1:8080` で待つ。
+HTTPS は同じサーバーの nginx か Caddy が受けて転送する。
 
 1. サーバーに Docker を入れ、80/443 番を開ける
 2. DNS で `api.cusf2026` の A レコードをサーバーへ向ける（Cloudflare なら DNS only・灰色のクラウド）
-3. 統計風 DuckDB を `/srv/clim/` に置く
-4. 起動して確認する
+3. 統計風 DuckDB を `/srv/clim/` に置く（`sudo chown $USER:$USER /srv/clim` してからコピー）
+4. 起動して、HTTPS の受け口を用意する
 
 ```bash
 cd backend
 docker compose up -d --build
-curl https://api.cusf2026.ddd3h.com/api/health   # {"status":"ok",...}
+curl localhost:8080/api/health                   # {"status":"ok",...}
+
+# 80/443 番を nginx が使っている場合
+sudo cp nginx/api.cusf2026.ddd3h.com.conf /etc/nginx/sites-available/
+sudo ln -s /etc/nginx/sites-available/api.cusf2026.ddd3h.com.conf /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d api.cusf2026.ddd3h.com
+
+# 80/443 番が空いている場合は、代わりに Caddy のコンテナも起動する
+# docker compose --profile caddy up -d --build
+
+curl https://api.cusf2026.ddd3h.com/api/health
 ```
 
 詳しくは `docs/source/deployment.rst`（Sphinx の「デプロイ・配信の仕組み」）。
@@ -134,9 +145,11 @@ python -m sphinx -b html docs/source docs/_build/html
 
 ## デプロイ
 
-mainブランチへのpushでGitHub Actionsが `frontend/` をビルドしGitHub Pagesへ自動デプロイします
-(Settings > Pages > Source を "GitHub Actions" に設定)。
-Sphinxドキュメントも `/docs/` 配下に同時デプロイされます。
+mainブランチへのpushでGitHub Actions (`.github/workflows/deploy.yml`) が `frontend/` をテスト・ビルドし、
+Cloudflare Workers (`https://cusf2026.ddd3h.com`) へ自動デプロイします。
+リポジトリの secrets に `CLOUDFLARE_API_TOKEN` (テンプレート「Edit Cloudflare Workers」で作るトークン) と
+`CLOUDFLARE_ACCOUNT_ID` が必要です。Sphinxドキュメントも `/docs/` 配下に同時デプロイされます。
+バックエンドは上の「バックエンドの公開（Docker）」のとおり別のサーバーで動かします。
 
 ## License
 
