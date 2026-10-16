@@ -1,0 +1,2 @@
+# Same GeographicLib version declared by the existing Balloon Lab backend.
+geographiclib==2.1

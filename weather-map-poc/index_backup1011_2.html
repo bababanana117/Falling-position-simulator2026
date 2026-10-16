@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Balloon Lab | Open-Meteo 気象PoC</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,sans-serif;color:#e9f2f5;background:#17262d}#map{height:100vh;width:100%}.panel{position:absolute;z-index:1000;right:14px;top:14px;width:320px;max-width:calc(100vw - 28px);max-height:calc(100vh - 28px);overflow:auto;background:#17262df0;border:1px solid #405b67;border-radius:13px;padding:17px;box-shadow:0 5px 30px #0005}h2{font-size:17px;margin:0 0 5px}p{margin:7px 0;line-height:1.55;font-size:13px}label{display:block;margin:13px 0 6px;font-size:13px;font-weight:650}select,button,input[type=range]{width:100%}select,button{font:inherit;background:#263c46;color:white;border:1px solid #637d88;border-radius:7px;padding:9px}button{cursor:pointer;margin-top:12px;background:#246688}button:disabled{opacity:.6;cursor:wait}.muted{color:#b5c6cf;font-size:12px}.error{color:#ffad9d}.warn{color:#ffe19a}.check{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500}.check input{accent-color:#65c5d9}.legend{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:9px;font-size:11px}.sw{width:14px;height:12px;border-radius:2px;display:inline-block}hr{border:0;border-top:1px solid #50636d;margin:14px 0}.windicon{font-size:24px;font-weight:900;text-shadow:0 1px 2px white}.badge{background:#665219;color:#ffe69d;padding:3px 6px;border-radius:4px}.leaflet-control-attribution{font-size:10px!important}
+@media(max-width:650px){.panel{width:268px;padding:11px;top:8px;right:8px;max-height:72vh}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<aside class="panel">
+  <h2>Balloon Lab | 気象PoC</h2>
+  <p class="muted">Open-Meteo に一本化｜地上気象・48時間</p>
+  <label for="hour">表示時刻（日本時間）</label>
+  <select id="hour" disabled><option>取得中...</option></select>
+  <input id="scrub" type="range" min="0" max="0" value="0" disabled aria-label="時刻を移動">
+  <p id="timeLabel" class="muted">未取得</p>
+  <hr>
+  <label class="check"><input id="windToggle" type="checkbox" checked>風ベクトル（10 m高度）</label>
+  <label class="check"><input id="rainToggle" type="checkbox" checked>予想降水量の分布（直前1時間の積算）</label>
+  <label class="check"><input id="demoToggle" type="checkbox">仮想雨域を表示 <span class="badge">テスト専用</span></label>
+  <p class="muted">実データの降水量が0 mmなら透明。仮想雨域は表示テスト用で、実際の予報ではありません。</p>
+  <div class="legend"><span class="sw" style="background:#82d9ed"></span>0.1〜1 mm <span class="sw" style="background:#2c86ed"></span>1〜5 mm <span class="sw" style="background:#f0bb3c"></span>5〜10 mm <span class="sw" style="background:#ef5b61"></span>10 mm以上</div>
+  <p class="muted">風の矢印：吹いていく方向。青＜5 m/s、橙5〜10 m/s、赤≧10 m/s。</p>
+  <hr>
+  <p id="state">予報を取得しています...</p>
+  <p id="values" class="muted"></p>
+  <p id="coverage" class="muted"></p>
+  <button id="reload">気象データを再取得</button>
+  <p class="muted">取得元：<a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:#a6e6ff">Open-Meteo</a>（数値予報）。地図：© OpenStreetMap contributors。</p>
+  <p class="muted">※49地点の予報値を補間した概略図です。雨雲レーダーではありません。詳細な雨域・局地的降水の予測精度を示すものではありません。飛行計算には使用しません。</p>
+</aside>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+'use strict';
+// 完全に独立した地上気象可視化PoC。Balloon Labの飛行計算には接続しない。
+const CENTER=[33.0,132.5], GRID=7, STEP=0.16;
+const points=[];
+for(let r=0;r<GRID;r++)for(let c=0;c<GRID;c++)points.push({lat:CENTER[0]+(r-3)*STEP,lon:CENTER[1]+(c-3)*STEP,r,c});
+const map=L.map('map').setView(CENTER,9);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
+L.marker(CENTER).addTo(map).bindPopup('放球候補地点（PoC）');
+map.createPane('rainPane');map.getPane('rainPane').style.zIndex=350;map.getPane('rainPane').style.pointerEvents='none';
+const windLayer=L.layerGroup().addTo(map);
+const el=id=>document.getElementById(id);
+let data=[],times=[],selected=0,requestId=0,latestFetched=null,rainLayer=null;
+const minLat=points[0].lat,maxLat=points[points.length-1].lat,minLon=points[0].lon,maxLon=points[points.length-1].lon;
+function hourMillis(t){return new Date(t+':00+09:00').getTime()}
+function setStatus(s,error=false){el('state').textContent=s;el('state').className=error?'error':''}
+function numeric(v){return typeof v==='number' && Number.isFinite(v)}
+function precip(i){const v=data[i]?.hourly?.precipitation?.[selected];return numeric(v)?Math.max(0,v):null}
+function windValue(i,name){const v=data[i]?.hourly?.[name]?.[selected];return numeric(v)?v:null}
+function colorForRain(v){if(v<0.1)return null;if(v<1)return[130,217,237];if(v<5)return[44,134,237];if(v<10)return[240,187,60];return[239,91,97]}
+// 周辺4格子点の降水量を双線形補間（モデル本来の解像度が向上するわけではない）。
+function sample(lat,lon){
+  const row=(lat-minLat)/STEP,col=(lon-minLon)/STEP;
+  if(row<0||row>GRID-1||col<0||col>GRID-1)return null;
+  const r0=Math.min(GRID-2,Math.floor(row)),c0=Math.min(GRID-2,Math.floor(col));
+  const fr=row-r0,fc=col-c0,indices=[r0*GRID+c0,r0*GRID+c0+1,(r0+1)*GRID+c0,(r0+1)*GRID+c0+1];
+  let vals=indices.map(i=>precip(i));
+  if(vals.some(v=>v===null))return null;
+  let v=(vals[0]*(1-fc)+vals[1]*fc)*(1-fr)+(vals[2]*(1-fc)+vals[3]*fc)*fr;
+  if(el('demoToggle').checked){
+    // 実測・実予報ではない！可視化試験専用の仮想雨域。
+    const dx=(lon-(CENTER[1]+0.12))/0.22,dy=(lat-(CENTER[0]+0.07))/0.15;
+    v=Math.max(v,11*Math.exp(-(dx*dx+dy*dy)*1.6));
+  }
+  return v;
+}
+// Canvasタイルには地図の実座標を使う。API未取得・地域外は透明にする。
+const RainGrid=L.GridLayer.extend({
+  createTile:function(coords,done){
+    const canvas=document.createElement('canvas');canvas.width=256;canvas.height=256;
+    const ctx=canvas.getContext('2d'),sz=256,step=6;
+    const nw=coords.scaleBy({x:sz,y:sz}),z=coords.z;
+    for(let y=0;y<sz;y+=step)for(let x=0;x<sz;x+=step){
+      const loc=map.unproject(L.point(nw.x+x+step/2,nw.y+y+step/2),z);
+      const v=sample(loc.lat,loc.lng),rgb=v===null?null:colorForRain(v);
+      if(!rgb)continue;
+      ctx.fillStyle=`rgba(${rgb.join(',')},${Math.min(0.77,0.35+v*0.035)})`;
+      ctx.fillRect(x,y,step,step);
+    }
+    if(done)queueMicrotask(()=>done(null,canvas));
+    return canvas;
+  }
+});
+function render(){
+  if(!data.length||!times.length)return;
+  windLayer.clearLayers();
+  if(rainLayer){map.removeLayer(rainLayer);rainLayer=null}
+  let validRain=0,positive=0,maxRain=0,windCount=0;
+  for(let i=0;i<points.length;i++){
+    const v=precip(i);if(v!==null){validRain++;if(v>=0.1)positive++;maxRain=Math.max(maxRain,v)}
+    const p=points[i];if(p.r>=1&&p.r<=5&&p.c>=1&&p.c<=5&&el('windToggle').checked){
+      const speed=windValue(i,'wind_speed_10m'),dir=windValue(i,'wind_direction_10m');
+      if(speed===null||dir===null)continue;
+      const color=speed>=10?'#db3c3c':speed>=5?'#e78d18':'#107eab';
+      const angle=(dir+180)%360;
+      const icon=L.divIcon({className:'',html:`<div class="windicon" style="color:${color};transform:rotate(${angle}deg)">↑</div>`,iconSize:[28,28],iconAnchor:[14,14]});
+      L.marker([p.lat,p.lon],{icon,keyboard:false}).addTo(windLayer).bindPopup(`風速：${speed} m/s<br>風向：${dir}°（吹いてくる方位）<br>予報値：Open-Meteo`);
+      windCount++;
+    }
+  }
+  if(el('rainToggle').checked&&validRain===points.length){rainLayer=new RainGrid({pane:'rainPane',opacity:0.9,tileSize:256,updateWhenIdle:true,keepBuffer:1});rainLayer.addTo(map)}
+  const demo=el('demoToggle').checked;
+  el('timeLabel').textContent='有効時刻：'+times[selected].replace('T',' ')+' JST';
+  el('values').textContent=`風：${windCount}地点表示｜降水：${validRain}/${points.length}地点取得｜最大 ${maxRain.toFixed(2)} mm/h相当（直前1時間の積算値：${maxRain.toFixed(2)} mm）｜降水あり ${positive}地点`;
+  el('coverage').textContent=demo?'【テスト表示中】仮想雨域を重ねています。実際の予報ではありません。':validRain===0?'降水データなし（取得失敗／時刻不一致）':validRain<points.length?'一部地点の降水値が欠損しています。欠損領域は非表示。':maxRain<0.1?'49地点すべてで0.1 mm未満。雨域の着色なし（正常）。':'Open-Meteo予報値の補間による概略的な降水分布を表示中。';
+  setStatus('取得成功｜'+(latestFetched?latestFetched.toLocaleTimeString('ja-JP'):'')+'更新｜統一データソース');
+}
+function selectTime(idx){selected=idx;el('hour').value=String(idx);el('scrub').value=String(idx);render()}
+el('hour').addEventListener('change',()=>selectTime(Number(el('hour').value)));
+el('scrub').addEventListener('input',()=>selectTime(Number(el('scrub').value)));
+for(const id of ['windToggle','rainToggle','demoToggle'])el(id).addEventListener('change',render);
+// 1度だけ取得し、時間操作・ズーム・画面移動でAPIを再取得しない。
+async function load(){
+ const token=++requestId;el('reload').disabled=true;el('hour').disabled=true;el('scrub').disabled=true;setStatus('49地点 × 48時間の風・降水を取得中...');
+ try{
+  let results=[];
+  for(let k=0;k<points.length;k+=25){
+   const chunk=points.slice(k,k+25);
+   const params=new URLSearchParams({latitude:chunk.map(p=>p.lat.toFixed(4)).join(','),longitude:chunk.map(p=>p.lon.toFixed(4)).join(','),hourly:'wind_speed_10m,wind_direction_10m,precipitation',wind_speed_unit:'ms',timezone:'Asia/Tokyo',forecast_days:'4'});
+   const res=await fetch('https://api.open-meteo.com/v1/forecast?'+params);
+   if(!res.ok)throw Error('HTTP '+res.status+'（取得グループ '+(Math.floor(k/25)+1)+'）');
+   const raw=await res.json();results.push(...(Array.isArray(raw)?raw:[raw]));
+  }
+  if(token!==requestId)return;
+  if(results.length!==points.length)throw Error('地点数不一致：'+results.length);
+  const fullTimes=results[0]?.hourly?.time;
+  if(!Array.isArray(fullTimes)||fullTimes.length<48)throw Error('時間別予報が不足');
+  const now=Date.now(),start=now-3600000,end=now+48*3600000;
+  const indices=fullTimes.map((t,i)=>({i,ms:hourMillis(t)})).filter(o=>Number.isFinite(o.ms)&&o.ms>=start&&o.ms<=end);
+  if(indices.length<40)throw Error('今後48時間の予報が不足しています');
+  // 全地点で時刻軸が完全に揃っていることを確認
+  for(const item of results){if(!indices.every(o=>item.hourly?.time?.[o.i]===fullTimes[o.i]))throw Error('地点ごとの予報時刻が一致しません')}
+  data=results.map(item=>({...item,hourly:{...item.hourly,wind_speed_10m:indices.map(o=>item.hourly.wind_speed_10m?.[o.i]),wind_direction_10m:indices.map(o=>item.hourly.wind_direction_10m?.[o.i]),precipitation:indices.map(o=>item.hourly.precipitation?.[o.i])}}));
+  times=indices.map(o=>fullTimes[o.i]);
+  const select=el('hour');select.innerHTML='';
+  times.forEach((t,i)=>{const option=document.createElement('option');option.value=i;option.textContent=t.replace('T',' ')+' JST';select.appendChild(option)});
+  el('scrub').max=String(times.length-1);
+  select.disabled=false;el('scrub').disabled=false;
+  latestFetched=new Date();
+  selectTime(Math.max(0,times.findIndex(t=>hourMillis(t)>=now)));
+ }catch(e){if(token!==requestId)return;data=[];times=[];windLayer.clearLayers();if(rainLayer){map.removeLayer(rainLayer);rainLayer=null}setStatus('データ取得失敗：'+e.message,true);el('coverage').textContent='雨なしとは判定しません。再取得してください。';}
+ finally{if(token===requestId)el('reload').disabled=false}
+}
+el('reload').addEventListener('click',load);
+load();
+</script>
+</body>
+</html>

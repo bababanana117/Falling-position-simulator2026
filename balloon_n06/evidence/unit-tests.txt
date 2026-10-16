@@ -1,0 +1,39 @@
+test_dateline_short_arc (test_n06.DistanceTests.test_dateline_short_arc) ... ok
+test_equatorial_known_one_degree (test_n06.DistanceTests.test_equatorial_known_one_degree) ... ok
+test_hokkaido_against_wgs84 (test_n06.DistanceTests.test_hokkaido_against_wgs84) ... ok
+test_identical_zero (test_n06.DistanceTests.test_identical_zero) ... ok
+test_invalid_landing_distance (test_n06.DistanceTests.test_invalid_landing_distance) ... ok
+test_invalid_targets (test_n06.DistanceTests.test_invalid_targets) ... ok
+test_poles_and_equivalent_longitudes (test_n06.DistanceTests.test_poles_and_equivalent_longitudes) ... ok
+test_target_schema (test_n06.DistanceTests.test_target_schema) ... ok
+test_cli_and_input_hash_unchanged (test_n06.FileCliTests.test_cli_and_input_hash_unchanged) ... ok
+test_corrupt_json_rejected (test_n06.FileCliTests.test_corrupt_json_rejected) ... ok
+test_invalid_manifest (test_n06.FileCliTests.test_invalid_manifest) ... ok
+test_manifest_relative_paths_and_missing_invalid_files (test_n06.FileCliTests.test_manifest_relative_paths_and_missing_invalid_files) ... ok
+test_distance_order_and_unranked (test_n06.RankingTests.test_distance_order_and_unranked) ... ok
+test_equal_distance_input_order (test_n06.RankingTests.test_equal_distance_input_order) ... ok
+test_no_engine_or_api_calls (test_n06.RankingTests.test_no_engine_or_api_calls) ... ok
+test_no_landed_results_retained (test_n06.RankingTests.test_no_landed_results_retained) ... ok
+test_normalized_stopped_cannot_override_evaluable (test_n06.RankingTests.test_normalized_stopped_cannot_override_evaluable) ... ok
+test_target_changes_only_evaluation (test_n06.RankingTests.test_target_changes_only_evaluation) ... ok
+test_api_envelope (test_n06.ResultTests.test_api_envelope) ... ok
+test_direct_landed (test_n06.ResultTests.test_direct_landed) ... ok
+test_failed_and_queued_jobs (test_n06.ResultTests.test_failed_and_queued_jobs) ... ok
+test_identifiers_preserved (test_n06.ResultTests.test_identifiers_preserved) ... ok
+test_invalid_landing (test_n06.ResultTests.test_invalid_landing) ... ok
+test_job_completed_without_result (test_n06.ResultTests.test_job_completed_without_result) ... ok
+test_job_result_identity_and_state_conflicts (test_n06.ResultTests.test_job_result_identity_and_state_conflicts) ... ok
+test_missing_landing (test_n06.ResultTests.test_missing_landing) ... ok
+test_missing_launch (test_n06.ResultTests.test_missing_launch) ... ok
+test_n05_api_record (test_n06.ResultTests.test_n05_api_record) ... ok
+test_n05_error_without_result (test_n06.ResultTests.test_n05_error_without_result) ... ok
+test_no_source_mutation (test_n06.ResultTests.test_no_source_mutation) ... ok
+test_raw_result (test_n06.ResultTests.test_raw_result) ... ok
+test_status_and_schema_conflicts (test_n06.ResultTests.test_status_and_schema_conflicts) ... ok
+test_stopped_never_uses_last_record_or_wrapper_landing (test_n06.ResultTests.test_stopped_never_uses_last_record_or_wrapper_landing) ... ok
+test_unsupported_formats (test_n06.ResultTests.test_unsupported_formats) ... ok
+
+----------------------------------------------------------------------
+Ran 34 tests in 0.075s
+
+OK

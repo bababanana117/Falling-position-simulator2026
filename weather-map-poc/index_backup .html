@@ -1,0 +1,419 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Balloon Lab | 風ベクトルPoC</title>
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+    }
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+    .panel {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 1000;
+      background: #142126;
+      color: white;
+      border-radius: 12px;
+      padding: 18px;
+      width: 250px;
+      box-shadow: 0 4px 20px #0004;
+    }
+    .panel h3 { margin: 0 0 12px; }
+    .panel p { font-size: 13px; }
+    .panel select, .panel button {
+      width: 100%;
+      padding: 8px;
+      margin-top: 8px;
+    }
+    .wind-icon {
+      width: 30px;
+      height: 30px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .wind-arrow {
+      font-size: 27px;
+      line-height: 1;
+      font-weight: bold;
+      color: #086fa1;
+      text-shadow: 0 0 3px white;
+    }
+    .legend {
+      font-size: 12px;
+      color: #c5d4db;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <div class="panel">
+    <h3>Balloon Lab 気象PoC</h3>
+    <p>地上10m風ベクトル：25地点</p>
+
+    <label for="timeSelect">予報対象時刻</label>
+    <select id="timeSelect" disabled>
+      <option>読み込み中...</option>
+    </select>
+
+    <p id="status">気象データ取得中...</p>
+    <p class="legend">
+      矢印：風が吹いていく方向<br>
+      色：風速によって変化<br>
+      青：5m/s未満<br>
+      橙：5〜10m/s<br>
+      赤：10m/s以上
+    </p>
+    <button id="refresh">気象データを再取得</button>
+    <label style="display:block; margin-top:12px;">
+  <input type="checkbox" id="rainToggle" checked>
+
+  <label for="rainTimeSelect" style="display:block; margin-top:12px;">
+  雨雲の表示時刻
+</label>
+
+<select id="rainTimeSelect" disabled>
+  <option>時刻を取得中...</option>
+</select>
+
+<p id="rainStatus" class="legend"></p>
+
+  雨雲レイヤーを表示
+</label>
+
+
+    <p class="legend" id="source">
+      出典：Open-Meteo（予報値）
+    </p>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const center = { lat: 33.0, lon: 132.5 };
+    const gridSize = 5;
+    const spacing = 0.12;
+
+    const rainToggle = document.getElementById("rainToggle");
+
+    const rainTimeSelect = document.getElementById("rainTimeSelect");
+    const rainStatus = document.getElementById("rainStatus");   
+
+let rainLayer = null;
+
+    const map = L.map("map").setView(
+      [center.lat, center.lon], 9
+    );
+
+    L.tileLayer(
+      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      {
+        attribution: "&copy; OpenStreetMap contributors",
+        maxZoom: 19
+      }
+    ).addTo(map);
+
+    map.on("zoomend", () => {
+      console.log("現在のズーム:", map.getZoom());
+        });
+
+    L.marker([center.lat, center.lon])
+      .addTo(map)
+      .bindPopup("放球候補地点");
+
+    // 25地点の格子を生成
+    const points = [];
+
+    for (let row = 0; row < gridSize; row++) {
+      for (let col = 0; col < gridSize; col++) {
+        points.push({
+          lat: center.lat + (row - 2) * spacing,
+          lon: center.lon + (col - 2) * spacing
+        });
+      }
+    }
+
+    const windLayer = L.layerGroup().addTo(map);
+    const timeSelect = document.getElementById("timeSelect");
+    const status = document.getElementById("status");
+    const refreshButton = document.getElementById("refresh");
+
+    let weatherData = [];
+    let requestNumber = 0;
+
+    function windColor(speed) {
+      if (speed >= 10) return "#d73535";
+      if (speed >= 5) return "#e58b19";
+      return "#087ca3";
+    }
+
+
+function updateRainLayer() {
+  
+let rainTimes = [];
+
+function formatJST(utcString) {
+  const formatted = utcString.replace(
+    /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/,
+    "$1-$2-$3T$4:$5:$6Z"
+  );
+
+  return new Date(formatted).toLocaleString("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function updateRainLayer() {
+  if (rainLayer) {
+    map.removeLayer(rainLayer);
+    rainLayer = null;
+  }
+
+  if (!rainToggle.checked || rainTimes.length === 0) {
+    return;
+  }
+
+  const index = Number(rainTimeSelect.value);
+  const frame = rainTimes[index];
+
+  if (!frame) return;
+
+  const template =
+    `https://www.jma.go.jp/bosai/jmatile/data/nowc/` +
+    `${frame.basetime}/none/${frame.validtime}/` +
+    `surf/hrpns/{z}/{x}/{y}.png`;
+
+  rainLayer = L.tileLayer(template, {
+    opacity: 0.7,
+
+    // 前回、全ズームで表示できた検証用設定
+    minNativeZoom: 4,
+    maxNativeZoom: 4,
+    minZoom: 0,
+    maxZoom: 19,
+
+    attribution: "気象庁 高解像度降水ナウキャスト"
+  });
+
+  rainLayer.addTo(map);
+  rainStatus.textContent =
+    "雨雲対象時刻：" + formatJST(frame.validtime);
+}
+
+async function fetchRainTimes() {
+  rainStatus.textContent = "雨雲の時刻一覧を取得中...";
+  rainTimeSelect.disabled = true;
+
+  try {
+    const url =
+      "https://www.jma.go.jp/bosai/jmatile/data/nowc/" +
+      "targetTimes_N1.json";
+
+    const response = await fetch(url, { cache: "no-cache" });
+
+    if (!response.ok) {
+      throw new Error("HTTP " + response.status);
+    }
+
+    const items = await response.json();
+
+    rainTimes = items
+      .filter(item =>
+        /^\d{14}$/.test(item.basetime) &&
+        /^\d{14}$/.test(item.validtime) &&
+        item.elements?.includes("hrpns")
+      )
+      .sort((a, b) =>
+        a.validtime.localeCompare(b.validtime)
+      );
+
+    if (rainTimes.length === 0) {
+      throw new Error("利用可能な雨雲時刻がありません");
+    }
+
+    rainTimeSelect.innerHTML = "";
+
+    rainTimes.forEach((frame, index) => {
+      const option = document.createElement("option");
+      option.value = index;
+      option.textContent = formatJST(frame.validtime);
+      rainTimeSelect.appendChild(option);
+    });
+
+    // 一覧の最も新しい対象時刻を初期選択
+    rainTimeSelect.value = String(rainTimes.length - 1);
+    rainTimeSelect.disabled = false;
+
+    updateRainLayer();
+
+  } catch (error) {
+    rainStatus.textContent =
+      "雨雲時刻の取得失敗：" + error.message;
+  }
+}
+}
+
+
+    function drawWind(index) {
+      windLayer.clearLayers();
+
+      for (let i = 0; i < points.length; i++) {
+        const data = weatherData[i];
+        const speed = data?.hourly?.wind_speed_10m?.[index];
+        const direction = data?.hourly?.wind_direction_10m?.[index];
+
+        if (!Number.isFinite(speed) ||
+            !Number.isFinite(direction)) {
+          continue;
+        }
+
+        // 気象学的な風向を、風が進む方向に変換
+        const angle = (direction + 180) % 360;
+        const color = windColor(speed);
+
+        const icon = L.divIcon({
+          className: "",
+          html: `
+            <div class="wind-icon">
+              <div class="wind-arrow"
+                   style="color:${color};
+                          transform:rotate(${angle}deg)">
+                ↑
+              </div>
+            </div>
+          `,
+          iconSize: [30, 30],
+          iconAnchor: [15, 15]
+        });
+
+        L.marker(
+          [points[i].lat, points[i].lon],
+          { icon, keyboard: false }
+        )
+          .bindPopup(
+            `地上10m風速：${speed} m/s<br>
+             風向：${direction}°<br>
+             出典：Open-Meteo`
+          )
+          .addTo(windLayer);
+      }
+
+      status.textContent =
+        `${windLayer.getLayers().length}地点の風を表示中`;
+    }
+
+    async function fetchWeather() {
+      const myRequest = ++requestNumber;
+
+      refreshButton.disabled = true;
+      timeSelect.disabled = true;
+      status.textContent = "25地点の気象予報を取得中...";
+
+      try {
+        const params = new URLSearchParams({
+          latitude: points.map(p => p.lat).join(","),
+          longitude: points.map(p => p.lon).join(","),
+          hourly: "wind_speed_10m,wind_direction_10m",
+          wind_speed_unit: "ms",
+          timezone: "Asia/Tokyo",
+          forecast_days: "2"
+        });
+
+        const url =
+          "https://api.open-meteo.com/v1/forecast?" +
+          params.toString();
+
+        const start = performance.now();
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (myRequest !== requestNumber) return;
+
+        const items = Array.isArray(result) ? result : [result];
+
+        if (items.length !== points.length) {
+          throw new Error(
+            `応答地点数が不一致：${items.length}/${points.length}`
+          );
+        }
+
+        weatherData = items;
+
+        const times = weatherData[0].hourly.time;
+
+        timeSelect.innerHTML = "";
+
+        times.forEach((time, index) => {
+          const option = document.createElement("option");
+          option.value = index;
+          option.textContent = time.replace("T", " ");
+          timeSelect.appendChild(option);
+        });
+
+        // 現在時刻以降で最初の予報時刻を選択
+        const currentIndex = times.findIndex(
+          time => new Date(time + ":00+09:00") >= new Date()
+        );
+        timeSelect.value = String(
+          currentIndex >= 0 ? currentIndex : 0
+        );
+
+        const elapsed = Math.round(
+          performance.now() - start
+        );
+
+        drawWind(Number(timeSelect.value));
+
+        document.getElementById("source").textContent =
+          `出典：Open-Meteo（予報値）／取得 ${elapsed} ms`;
+
+        timeSelect.disabled = false;
+      } catch (error) {
+        if (myRequest !== requestNumber) return;
+        status.textContent = "取得失敗：" + error.message;
+      } finally {
+        if (myRequest === requestNumber) {
+          refreshButton.disabled = false;
+        }
+      }
+    }
+
+    timeSelect.addEventListener("change", () => {
+      drawWind(Number(timeSelect.value));
+    });
+
+    refreshButton.addEventListener("click", fetchWeather);
+
+rainToggle.addEventListener("change", updateRainLayer);
+
+rainTimeSelect.addEventListener("change", updateRainLayer);
+
+fetchRainTimes();
+fetchWeather();
+
+
+updateRainLayer();
+
+    fetchWeather();
+  </script>
+</body>
+</html>

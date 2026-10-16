@@ -1,0 +1,53 @@
+test_api_external_disabled (test_adapter.AdapterTests.test_api_external_disabled) ... ok
+test_api_instance_changed (test_adapter.AdapterTests.test_api_instance_changed) ... ok
+test_api_payload_nonmutating (test_adapter.AdapterTests.test_api_payload_nonmutating) ... ok
+test_api_post_failure_not_retried (test_adapter.AdapterTests.test_api_post_failure_not_retried) ... ok
+test_api_waiting_and_result (test_adapter.AdapterTests.test_api_waiting_and_result) ... ok
+test_coordinates_only (test_adapter.AdapterTests.test_coordinates_only) ... ok
+test_engine_failure_distinct (test_adapter.AdapterTests.test_engine_failure_distinct) ... ok
+test_engine_receives_unchanged_other_fields (test_adapter.AdapterTests.test_engine_receives_unchanged_other_fields) ... ok
+test_invalid_coordinates (test_adapter.AdapterTests.test_invalid_coordinates) ... ok
+test_invalid_engine_result (test_adapter.AdapterTests.test_invalid_engine_result) ... ok
+test_invalid_json (test_adapter.AdapterTests.test_invalid_json) ... ok
+test_landed (test_adapter.AdapterTests.test_landed) ... ok
+test_missing_launch (test_adapter.AdapterTests.test_missing_launch) ... ok
+test_mock_reproducibility (test_adapter.AdapterTests.test_mock_reproducibility) ... ok
+test_nested_copy (test_adapter.AdapterTests.test_nested_copy) ... ok
+test_output_no_overwrite (test_adapter.AdapterTests.test_output_no_overwrite) ... ok
+test_simulator_mutation_isolated (test_adapter.AdapterTests.test_simulator_mutation_isolated) ... ok
+test_stopped_has_no_landing (test_adapter.AdapterTests.test_stopped_has_no_landing) ... ok
+test_support_stop_not_exception (test_adapter.AdapterTests.test_support_stop_not_exception) ... ok
+test_validation_failure_no_compute (test_adapter.AdapterTests.test_validation_failure_no_compute) ... ok
+test_changed_weather_between_loads_fails (test_benchmark.BenchmarkTests.test_changed_weather_between_loads_fails) ... 10 cases / reload: 1/10
+ok
+test_not_enough_sites_no_loading (test_benchmark.BenchmarkTests.test_not_enough_sites_no_loading) ... ok
+test_reload_ten_loads_not_eleven (test_benchmark.BenchmarkTests.test_reload_ten_loads_not_eleven) ... 10 cases / reload: 1/10
+10 cases / reload: 2/10
+10 cases / reload: 3/10
+10 cases / reload: 4/10
+10 cases / reload: 5/10
+10 cases / reload: 6/10
+10 cases / reload: 7/10
+10 cases / reload: 8/10
+10 cases / reload: 9/10
+10 cases / reload: 10/10
+ok
+test_shared_one_load_ten_runs (test_benchmark.BenchmarkTests.test_shared_one_load_ten_runs) ... 10 cases / reuse: 1/10
+10 cases / reuse: 2/10
+10 cases / reuse: 3/10
+10 cases / reuse: 4/10
+10 cases / reuse: 5/10
+10 cases / reuse: 6/10
+10 cases / reuse: 7/10
+10 cases / reuse: 8/10
+10 cases / reuse: 9/10
+10 cases / reuse: 10/10
+ok
+test_one_post_headers_poll_and_result (test_http_transport.HttpTransportTests.test_one_post_headers_poll_and_result) ... ok
+test_adapter_matches_original_and_repeats (test_integration.RealGfsTests.test_adapter_matches_original_and_repeats) ... skipped 'REAL GFS UNVERIFIED: N05_ENGINE_ROOT/CONFIG/WEATHER not supplied'
+test_changed_site_matches_original (test_integration.RealGfsTests.test_changed_site_matches_original) ... skipped 'REAL GFS UNVERIFIED: N05_ENGINE_ROOT/CONFIG/WEATHER not supplied'
+
+----------------------------------------------------------------------
+Ran 27 tests in 0.516s
+
+OK (skipped=2)

@@ -1,0 +1,13 @@
+{
+  "branch": "dev/balloon-analysis-app",
+  "commit": "fbb1cc76c112d8c495d2044604b330f1c0f5c8d6",
+  "status": "",
+  "diff": "",
+  "remote_observed_commit": "fbb1cc76c112d8c495d2044604b330f1c0f5c8d6",
+  "python": "3.12.14",
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.39",
+  "geographiclib": "2.1",
+  "real_user_files_received": false,
+  "flight_simulations_executed": 0,
+  "balloon_api_requests": 0
+}

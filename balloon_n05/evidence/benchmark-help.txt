@@ -1,0 +1,13 @@
+usage: benchmark.py [-h] --engine-root ENGINE_ROOT --config CONFIG --weather
+                    WEATHER --sites SITES [--counts COUNTS [COUNTS ...]]
+                    [--compare-reload] --out OUT
+
+options:
+  -h, --help            show this help message and exit
+  --engine-root ENGINE_ROOT
+  --config CONFIG
+  --weather WEATHER
+  --sites SITES
+  --counts COUNTS [COUNTS ...]
+  --compare-reload
+  --out OUT

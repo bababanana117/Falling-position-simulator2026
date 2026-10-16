@@ -1,0 +1,13 @@
+usage: compare.py [-h] --manifest MANIFEST [--target TARGET]
+                  [--target-latitude-deg TARGET_LATITUDE_DEG]
+                  [--target-longitude-deg TARGET_LONGITUDE_DEG] --out OUT
+
+Compare saved landings with a target using WGS84; never simulate
+
+options:
+  -h, --help            show this help message and exit
+  --manifest MANIFEST
+  --target TARGET
+  --target-latitude-deg TARGET_LATITUDE_DEG
+  --target-longitude-deg TARGET_LONGITUDE_DEG
+  --out OUT

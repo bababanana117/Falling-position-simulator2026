@@ -1,0 +1,828 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Balloon Lab | 気象PoC</title>
+
+  <link rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+    }
+
+    #map {
+      width: 100%;
+      height: 100vh;
+    }
+
+    .panel {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 1000;
+      width: 280px;
+      max-height: calc(100vh - 64px);
+      overflow-y: auto;
+      padding: 18px;
+      box-sizing: border-box;
+      background: #142126;
+      color: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px #0004;
+    }
+
+    h3 {
+      margin: 0 0 12px;
+    }
+
+    .panel label {
+      display: block;
+      margin-top: 14px;
+      font-size: 14px;
+    }
+
+    .panel select,
+    .panel button {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 9px;
+      margin-top: 8px;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .panel p {
+      font-size: 13px;
+    }
+
+    .legend {
+      color: #c5d4db;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .error {
+      color: #ffb5a9;
+    }
+
+    .separator {
+      border: 0;
+      border-top: 1px solid #42535a;
+      margin: 18px 0;
+    }
+
+    .wind-icon {
+      width: 30px;
+      height: 30px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .wind-arrow {
+      font-size: 27px;
+      line-height: 1;
+      font-weight: bold;
+      text-shadow: 0 0 3px white;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="map"></div>
+
+  <div class="panel">
+    <h3>Balloon Lab 気象PoC</h3>
+
+    <p>地上10m風ベクトル：25地点</p>
+
+    <label for="timeSelect">
+      風の予報対象時刻
+    </label>
+
+    <select id="timeSelect" disabled>
+      <option>読み込み中...</option>
+    </select>
+
+    <p id="windStatus">
+      気象データを取得中...
+    </p>
+
+    <p class="legend">
+      矢印：風が吹いていく方向<br>
+      青：5m/s未満<br>
+      橙：5〜10m/s<br>
+      赤：10m/s以上
+    </p>
+
+    <button id="refreshWind">
+      風の予報を再取得
+    </button>
+
+    <p id="windSource" class="legend">
+      出典：Open-Meteo（数値予報）
+    </p>
+
+    <hr class="separator">
+
+    <label>
+      <input
+        type="checkbox"
+        id="rainToggle"
+        checked>
+      降水レイヤーを表示
+    </label>
+
+    <label for="rainType">
+      降水データの種類
+    </label>
+
+    <select id="rainType">
+      <option value="nowc">
+        高解像度降水ナウキャスト
+      </option>
+      <option value="rasrf">
+        降水短時間予報（最大15時間先）
+      </option>
+    </select>
+
+    <label for="rainTimeSelect">
+      降水データの対象時刻
+    </label>
+
+    <select id="rainTimeSelect" disabled>
+      <option>時刻を取得中...</option>
+    </select>
+
+    <button id="refreshRain">
+      降水データを更新
+    </button>
+
+    <p id="rainStatus" class="legend">
+      時刻情報を取得中...
+    </p>
+
+    <p class="legend">
+      出典：気象庁<br>
+      降水の表示透明度：70%（固定）<br>
+      風と降水の対象時刻は独立しています。<br>
+      技術検証用の表示です。
+    </p>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    // ==========================================
+    // 1. 地図
+    // ==========================================
+
+    const center = {
+      lat: 33.0,
+      lon: 132.5
+    };
+
+    const map = L.map("map").setView(
+      [center.lat, center.lon], 9
+    );
+
+    L.tileLayer(
+      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      {
+        attribution: "&copy; OpenStreetMap contributors",
+        maxZoom: 19
+      }
+    ).addTo(map);
+
+    // 雨雲を背景の上、マーカーの下に表示
+    map.createPane("rainPane");
+
+    map.getPane("rainPane").style.zIndex = 350;
+    map.getPane("rainPane").style.pointerEvents = "none";
+
+    L.marker([center.lat, center.lon])
+      .addTo(map)
+      .bindPopup("放球候補地点");
+
+    map.on("zoomend", () => {
+      console.log("現在のズーム:", map.getZoom());
+    });
+
+    // ==========================================
+    // 2. 25地点の風ベクトル
+    // ==========================================
+
+    const gridSize = 5;
+    const spacing = 0.12;
+    const points = [];
+
+    for (let row = 0; row < gridSize; row++) {
+      for (let col = 0; col < gridSize; col++) {
+        points.push({
+          lat: center.lat + (row - 2) * spacing,
+          lon: center.lon + (col - 2) * spacing
+        });
+      }
+    }
+
+    const windLayer = L.layerGroup().addTo(map);
+
+    const timeSelect =
+      document.getElementById("timeSelect");
+
+    const windStatus =
+      document.getElementById("windStatus");
+
+    const windSource =
+      document.getElementById("windSource");
+
+    const refreshWind =
+      document.getElementById("refreshWind");
+
+    let weatherData = [];
+    let windRequestId = 0;
+
+    function windColor(speed) {
+      if (speed >= 10) return "#d73535";
+      if (speed >= 5) return "#e58b19";
+      return "#087ca3";
+    }
+
+    function drawWind(index) {
+      windLayer.clearLayers();
+
+      let count = 0;
+
+      for (let i = 0; i < points.length; i++) {
+        const data = weatherData[i];
+
+        const speed =
+          data?.hourly?.wind_speed_10m?.[index];
+
+        const direction =
+          data?.hourly?.wind_direction_10m?.[index];
+
+        if (
+          !Number.isFinite(speed) ||
+          !Number.isFinite(direction)
+        ) {
+          continue;
+        }
+
+        // 気象学的風向は吹いてくる方向
+        // ↑を使うため、180度反転
+        const angle = (direction + 180) % 360;
+
+        const icon = L.divIcon({
+          className: "",
+          html: `
+            <div class="wind-icon">
+              <div class="wind-arrow"
+                style="
+                  color:${windColor(speed)};
+                  transform:rotate(${angle}deg);
+                ">↑</div>
+            </div>
+          `,
+          iconSize: [30, 30],
+          iconAnchor: [15, 15]
+        });
+
+        L.marker(
+          [points[i].lat, points[i].lon],
+          {
+            icon,
+            keyboard: false
+          }
+        )
+        .bindPopup(
+          `地上10m風速：${speed} m/s<br>` +
+          `風向：${direction}°<br>` +
+          `出典：Open-Meteo（予報値）`
+        )
+        .addTo(windLayer);
+
+        count++;
+      }
+
+      windStatus.classList.remove("error");
+      windStatus.textContent =
+        count + "地点の風を表示中";
+    }
+
+    async function fetchWeather() {
+      const requestId = ++windRequestId;
+
+      refreshWind.disabled = true;
+      timeSelect.disabled = true;
+
+      windStatus.classList.remove("error");
+      windStatus.textContent =
+        "25地点の風を取得中...";
+
+      try {
+        const params = new URLSearchParams({
+          latitude: points.map(p => p.lat).join(","),
+          longitude: points.map(p => p.lon).join(","),
+          hourly: "wind_speed_10m,wind_direction_10m",
+          wind_speed_unit: "ms",
+          timezone: "Asia/Tokyo",
+          forecast_days: "2"
+        });
+
+        const url =
+          "https://api.open-meteo.com/v1/forecast?" +
+          params.toString();
+
+        const start = performance.now();
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+
+        const result = await response.json();
+
+        if (requestId !== windRequestId) return;
+
+        const items = Array.isArray(result)
+          ? result
+          : [result];
+
+        if (items.length !== points.length) {
+          throw new Error("応答地点数が一致しません");
+        }
+
+        weatherData = items;
+
+        const times = items[0].hourly.time;
+
+        timeSelect.innerHTML = "";
+
+        times.forEach((time, index) => {
+          const option = document.createElement("option");
+
+          option.value = index;
+          option.textContent = time.replace("T", " ");
+
+          timeSelect.appendChild(option);
+        });
+
+        const currentIndex = times.findIndex(
+          time =>
+            new Date(time + ":00+09:00") >= new Date()
+        );
+
+        timeSelect.value = String(
+          currentIndex >= 0 ? currentIndex : 0
+        );
+
+        drawWind(Number(timeSelect.value));
+
+        const elapsed = Math.round(
+          performance.now() - start
+        );
+
+        windSource.textContent =
+          "出典：Open-Meteo（予報値）／応答 " +
+          elapsed + " ms";
+
+        timeSelect.disabled = false;
+
+      } catch (error) {
+        if (requestId !== windRequestId) return;
+
+        windStatus.classList.add("error");
+        windStatus.textContent =
+          "風の取得失敗：" + error.message;
+
+      } finally {
+        if (requestId === windRequestId) {
+          refreshWind.disabled = false;
+        }
+      }
+    }
+
+    timeSelect.addEventListener("change", () => {
+      drawWind(Number(timeSelect.value));
+    });
+
+    refreshWind.addEventListener("click", fetchWeather);
+
+    // 気象庁の偶数ズーム専用タイルレイヤー
+    const JmaRainTileLayer = L.TileLayer.extend({
+    _getZoomForUrl: function () {
+        const zoom = L.TileLayer.prototype._getZoomForUrl.call(this);
+
+        // 奇数ズームなら一段下の偶数ズームを利用
+        return Math.floor(zoom / 2) * 2;
+    }
+    });
+
+    // ==========================================
+    // 3. 降水データ共通設定
+    // ==========================================
+
+    const rainToggle =
+      document.getElementById("rainToggle");
+
+    const rainType =
+      document.getElementById("rainType");
+
+    const rainTimeSelect =
+      document.getElementById("rainTimeSelect");
+
+    const rainStatus =
+      document.getElementById("rainStatus");
+
+    const refreshRain =
+      document.getElementById("refreshRain");
+
+    const rainSources = {
+      nowc: {
+        name: "高解像度降水ナウキャスト",
+        listUrl:
+          "https://www.jma.go.jp/bosai/jmatile/data/nowc/" +
+          "targetTimes_N1.json",
+        element: "hrpns"
+      },
+      rasrf: {
+        name: "降水短時間予報",
+        listUrl:
+          "https://www.jma.go.jp/bosai/jmatile/data/rasrf/" +
+          "targetTimes.json",
+        element: "rasrf"
+      }
+    };
+
+    let rainLayer = null;
+    let rainTimes = [];
+    let rainRequestId = 0;
+
+    // ==========================================
+    // 4. UTCの14桁日時をJSTに変換
+    // ==========================================
+
+    function parseUTC(value) {
+      if (!/^\d{14}$/.test(value)) {
+        return null;
+      }
+
+      const iso = value.replace(
+        /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/,
+        "$1-$2-$3T$4:$5:$6Z"
+      );
+
+      const date = new Date(iso);
+
+      return Number.isNaN(date.getTime())
+        ? null
+        : date;
+    }
+
+    function formatJST(value) {
+      const date = parseUTC(value);
+
+      if (!date) return "時刻不明";
+
+      return date.toLocaleString("ja-JP", {
+        timeZone: "Asia/Tokyo",
+        month: "numeric",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
+    // ==========================================
+    // 5. 降水タイルURL
+    // ==========================================
+
+    function buildRainTileUrl(frame, type) {
+      if (type === "nowc") {
+        return (
+          "https://www.jma.go.jp/bosai/jmatile/data/nowc/" +
+          frame.basetime +
+          "/none/" +
+          frame.validtime +
+          "/surf/hrpns/{z}/{x}/{y}.png"
+        );
+      }
+
+      if (type === "rasrf") {
+        // memberはJSONの値をそのまま使う
+        if (!["none", "immed"].includes(frame.member)) {
+          throw new Error(
+            "未対応の降水データ区分：" + frame.member
+          );
+        }
+
+        return (
+          "https://www.jma.go.jp/bosai/jmatile/data/rasrf/" +
+          frame.basetime +
+          "/" +
+          frame.member +
+          "/" +
+          frame.validtime +
+          "/surf/rasrf/{z}/{x}/{y}.png"
+        );
+      }
+
+      throw new Error("未対応の降水データです");
+    }
+
+    // ==========================================
+    // 6. 降水レイヤーの描画
+    // ==========================================
+
+    function updateRainLayer() {
+      if (rainLayer) {
+        map.removeLayer(rainLayer);
+        rainLayer = null;
+      }
+
+      if (!rainToggle.checked) {
+        rainStatus.textContent =
+          "降水レイヤー：非表示";
+        return;
+      }
+
+      if (rainTimes.length === 0) {
+        return;
+      }
+
+      const index = Number(rainTimeSelect.value);
+      const frame = rainTimes[index];
+
+      if (!frame) return;
+
+      const type = rainType.value;
+
+      let template;
+
+      try {
+        template = buildRainTileUrl(frame, type);
+      } catch (error) {
+        rainStatus.classList.add("error");
+        rainStatus.textContent = error.message;
+        return;
+      }
+
+// 現在の地図ズームから、使用する偶数ズームを計算
+const mapZoom = map.getZoom();
+
+const nativeZoom = Math.max(
+  4,
+  Math.min(10, Math.floor(mapZoom / 2) * 2)
+);
+
+const layer = L.tileLayer(template, {
+  pane: "rainPane",
+  opacity: 0.7,
+
+  minNativeZoom: 4,
+  maxNativeZoom: nativeZoom,
+  minZoom: 0,
+  maxZoom: 19,
+
+        attribution:
+          "気象庁 " + rainSources[type].name
+      });
+
+      rainLayer = layer;
+
+      let tileErrors = 0;
+
+      layer.on("tileerror", () => {
+        tileErrors++;
+
+        if (rainLayer === layer) {
+          rainStatus.classList.add("error");
+          rainStatus.textContent =
+            "降水画像の取得に失敗しました（" +
+            tileErrors +
+            "タイル）。対象時刻・ズームを確認してください。";
+        }
+      });
+
+      layer.addTo(map);
+
+      rainStatus.classList.remove("error");
+      rainStatus.textContent =
+        rainSources[type].name +
+        "／対象：" +
+        formatJST(frame.validtime) +
+        "／基準：" +
+        formatJST(frame.basetime);
+    }
+
+    // ==========================================
+    // 7. 時刻一覧の取得
+    // ==========================================
+
+    async function fetchRainTimes() {
+      const requestId = ++rainRequestId;
+      const type = rainType.value;
+      const source = rainSources[type];
+
+      refreshRain.disabled = true;
+      rainTimeSelect.disabled = true;
+
+      rainTimes = [];
+      rainTimeSelect.innerHTML =
+        "<option>時刻を取得中...</option>";
+
+      // 種類を変えたら旧レイヤーは消す
+      if (rainLayer) {
+        map.removeLayer(rainLayer);
+        rainLayer = null;
+      }
+
+      rainStatus.classList.remove("error");
+      rainStatus.textContent =
+        source.name + " の時刻一覧を取得中...";
+
+      try {
+        const response = await fetch(
+          source.listUrl,
+          { cache: "no-cache" }
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            "HTTP " + response.status
+          );
+        }
+
+        const data = await response.json();
+
+        if (requestId !== rainRequestId) return;
+
+        if (!Array.isArray(data)) {
+          throw new Error(
+            "時刻一覧の形式が不正です"
+          );
+        }
+
+        // rasrfの一覧は他の要素も含むため
+        // 表示対象要素で絞り込む
+        const frames = data
+          .filter(item =>
+            /^\d{14}$/.test(item.basetime) &&
+            /^\d{14}$/.test(item.validtime) &&
+            item.elements?.includes(source.element) &&
+            (
+              type === "nowc" ||
+              ["none", "immed"].includes(item.member)
+            )
+          )
+          .sort((a, b) =>
+            a.validtime.localeCompare(b.validtime)
+          );
+
+        // 同じ対象時刻が複数ある場合は、
+        // 基準時刻が新しいものを使う
+        const unique = new Map();
+
+        frames.forEach(frame => {
+          const previous = unique.get(frame.validtime);
+
+          if (
+            !previous ||
+            frame.basetime > previous.basetime
+          ) {
+            unique.set(frame.validtime, frame);
+          }
+        });
+
+        rainTimes = [...unique.values()]
+          .sort((a, b) =>
+            a.validtime.localeCompare(b.validtime)
+          );
+
+        if (rainTimes.length === 0) {
+          throw new Error(
+            "利用可能な降水時刻がありません"
+          );
+        }
+
+        rainTimeSelect.innerHTML = "";
+
+        rainTimes.forEach((frame, index) => {
+          const option =
+            document.createElement("option");
+
+          option.value = index;
+
+          const leadHours =
+            (
+              parseUTC(frame.validtime) -
+              parseUTC(frame.basetime)
+            ) / 3600000;
+
+          const leadText = leadHours > 0
+            ? "（+" + leadHours.toFixed(1) + "h）"
+            : "（解析時刻）";
+
+          option.textContent =
+            formatJST(frame.validtime) +
+            " " +
+            leadText;
+
+          rainTimeSelect.appendChild(option);
+        });
+
+        // 初期表示は最新基準時刻の解析、
+        // または現在に最も近い予報を選ぶ。
+        const now = Date.now();
+
+        const latestBase = rainTimes.reduce(
+          (latest, frame) =>
+            frame.basetime > latest
+              ? frame.basetime
+              : latest,
+          ""
+        );
+
+        let selectedIndex = rainTimes.findIndex(
+          frame =>
+            frame.basetime === latestBase &&
+            parseUTC(frame.validtime).getTime() >= now
+        );
+
+        if (selectedIndex < 0) {
+          selectedIndex = rainTimes.findIndex(
+            frame => frame.basetime === latestBase
+          );
+        }
+
+        if (selectedIndex < 0) {
+          selectedIndex = rainTimes.length - 1;
+        }
+
+        rainTimeSelect.value = String(selectedIndex);
+        rainTimeSelect.disabled = false;
+
+        updateRainLayer();
+
+      } catch (error) {
+        if (requestId !== rainRequestId) return;
+
+        rainStatus.classList.add("error");
+        rainStatus.textContent =
+          "時刻一覧の取得失敗：" + error.message;
+
+      } finally {
+        if (requestId === rainRequestId) {
+          refreshRain.disabled = false;
+        }
+      }
+    }
+
+    // ==========================================
+    // 8. イベント
+    // ==========================================
+
+    rainToggle.addEventListener(
+      "change",
+      updateRainLayer
+    );
+
+    rainType.addEventListener(
+      "change",
+      fetchRainTimes
+    );
+
+    rainTimeSelect.addEventListener(
+      "change",
+      updateRainLayer
+    );
+
+    refreshRain.addEventListener(
+      "click",
+      fetchRainTimes
+    );
+
+        // 地図のズーム変更時に適切な解像度の雨雲へ切り替える
+    map.on("zoomend", () => {
+    if (rainTimes.length > 0 && rainToggle.checked) {
+        updateRainLayer();
+    }
+    });
+
+    // ==========================================
+    // 9. 初期化
+    // ==========================================
+
+    fetchWeather();
+    fetchRainTimes();
+  </script>
+</body>
+</html>

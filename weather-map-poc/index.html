@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Balloon Lab | 全国＋詳細気象PoC</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,sans-serif;color:#e9f2f5;background:#17262d}#map{height:100vh;width:100%}.panel{position:absolute;z-index:1000;top:13px;right:13px;width:330px;max-width:calc(100vw - 26px);max-height:calc(100vh - 26px);overflow:auto;background:#15252df2;border:1px solid #45606b;border-radius:12px;padding:16px;box-shadow:0 5px 25px #0006}h2{font-size:17px;margin:0 0 4px}p{font-size:13px;line-height:1.5;margin:7px 0}label{display:block;font-size:13px;margin:12px 0 5px;font-weight:650}select,button,input[type=range]{width:100%}select,button{font:inherit;padding:8px;color:white;border:1px solid #607e8c;background:#253f4b;border-radius:7px}button{background:#226d8c;margin-top:10px;cursor:pointer}button:disabled{opacity:.55;cursor:wait}.check{display:flex;align-items:center;gap:7px;font-weight:450}.muted{color:#b4c8d1;font-size:12px}.error{color:#ffb0a5}.warn{color:#ffe29f}hr{border:0;border-top:1px solid #435a64;margin:13px 0}.sw{display:inline-block;width:12px;height:12px;border-radius:2px;margin:0 4px 0 8px}.windicon{font-size:23px;font-weight:800;text-shadow:0 0 3px white}.hint{background:#233b45;padding:9px;border-radius:7px}.badge{background:#786327;color:#fff0bd;padding:2px 5px;border-radius:4px;font-size:10px}
+@media(max-width:650px){.panel{width:260px;top:7px;right:7px;max-height:70vh;padding:11px}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<aside class="panel">
+  <h2>Balloon Lab | 全国気象PoC</h2>
+  <p class="muted">Open-Meteoのみ｜全国粗格子＋表示範囲の詳細格子</p>
+  <label for="hour">表示時刻（JST・48時間）</label>
+  <select id="hour" disabled><option>取得中...</option></select>
+  <input type="range" id="scrub" min="0" max="0" value="0" disabled aria-label="表示時刻スライダー">
+  <p id="timeLabel" class="muted">時刻情報を取得中</p>
+  <hr>
+  <label class="check"><input type="checkbox" id="rainToggle" checked>予想降水量（直前1時間の積算）</label>
+  <label class="check"><input type="checkbox" id="windToggle" checked>地上10m風ベクトル</label>
+  <label class="check"><input type="checkbox" id="demoToggle">仮想雨域 <span class="badge">描画テスト専用</span></label>
+  <p class="muted">色の目安：<span class="sw" style="background:#82d9ed"></span>0.1〜1 <span class="sw" style="background:#2c86ed"></span>1〜5 <span class="sw" style="background:#f0bb3c"></span>5〜10 <span class="sw" style="background:#ef5b61"></span>10 mm以上</p>
+  <p class="muted">風の矢印は吹いていく方向。青＜5、橙5〜10、赤≧10 m/s。</p>
+  <hr>
+  <p id="state">全国の予報を取得中...</p>
+  <p id="gridStatus" class="muted"></p>
+  <p id="values" class="muted"></p>
+  <p id="coverage" class="muted"></p>
+  <button id="reload">表示データを再取得</button>
+  <button id="resetMap">全国表示に戻す</button>
+  <p class="hint muted">ズーム7以上で表示範囲の詳細格子を取得します。最大拡大時の取得間隔は愛媛付近で約2.5kmです（モデルの実効解像度とは異なります）。地図移動後は少し待つと更新します。更新・移動のたびに無制限に取得しないよう上限を設けています。</p>
+  <p class="muted">出典：<a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:#b0eaff">Open-Meteo</a>（モデル予報）。地図：© OpenStreetMap contributors。</p>
+  <p class="muted">※この表示は地点予報の格子間補間です。レーダー画像ではなく、細かい雨域の正確さを保証しません。飛行シミュレーションには接続していません。無料APIの商用使用は別途契約確認が必要です。</p>
+</aside>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+'use strict';
+// 地上気象表示の独立PoC。飛行物理・GFS・予測バックエンドには接続しない。
+const $=id=>document.getElementById(id);
+const CONFIG={national:{south:24,north:46,west:122,east:147,rows:9,cols:9},detailZoom:7,detailRows:9,detailCols:9,detailMargin:1.25,cacheMinutes:30,maxFetchGroupsPerSession:36,chunkSize:25,debounceMs:850};
+const map=L.map('map',{preferCanvas:true}).setView([36.5,137],5);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
+L.marker([33,132.5]).addTo(map).bindPopup('放球候補地点（表示例）');
+map.createPane('rainPane');map.getPane('rainPane').style.zIndex=350;map.getPane('rainPane').style.pointerEvents='none';
+const windLayer=L.layerGroup().addTo(map);
+let national=null,detail=null,times=[],selected=0,loadingSeq=0,detailSeq=0,detailTimer=null,rainLayer=null;
+let callGroups=0,networkBusy=false;
+const cache=new Map(); // 同一格子の取得結果を30分間再利用
+const toMs=t=>new Date(t+':00+09:00').getTime();
+const numeric=x=>typeof x==='number'&&Number.isFinite(x);
+const status=(s,error=false)=>{$('state').textContent=s;$('state').className=error?'error':''};
+const rainColor=v=>v<0.1?null:v<1?[130,217,237]:v<5?[44,134,237]:v<10?[240,187,60]:[239,91,97];
+const level=()=>map.getZoom()>=CONFIG.detailZoom?'詳細':'全国';
+function makeGrid(south,north,west,east,rows,cols,kind){
+ const pts=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)pts.push({lat:south+(north-south)*r/(rows-1),lon:west+(east-west)*c/(cols-1),r,c});
+ return {kind,south,north,west,east,rows,cols,points:pts,data:[],values:[],fetchedAt:0};
+}
+const gridKey=g=>[g.kind,g.south.toFixed(2),g.north.toFixed(2),g.west.toFixed(2),g.east.toFixed(2),g.rows,g.cols].join(':');
+function boundsCover(g,b){return !!g && g.south<=b.getSouth()&&g.north>=b.getNorth()&&g.west<=b.getWest()&&g.east>=b.getEast()}
+function stableDetailGrid(){
+ const b=map.getBounds(),center=map.getCenter(),latSpan=Math.min(9,Math.max(0.18,(b.getNorth()-b.getSouth())*CONFIG.detailMargin)),lonSpan=Math.min(11,Math.max(0.20,(b.getEast()-b.getWest())*CONFIG.detailMargin));
+ // 最小間隔は約2.5km。位置をずらすときにキャッシュが使えるよう格子中心を丸める
+ const qlat=Math.max(0.025,latSpan/4),qlon=Math.max(0.025,lonSpan/4),clat=Math.round(center.lat/qlat)*qlat,clon=Math.round(center.lng/qlon)*qlon;
+ return makeGrid(clat-latSpan/2,clat+latSpan/2,clon-lonSpan/2,clon+lonSpan/2,CONFIG.detailRows,CONFIG.detailCols,'詳細');
+}
+function readGridVal(g,index,name){const v=g?.data?.[index]?.hourly?.[name]?.[selected];return numeric(v)?v:null}
+function sampleGrid(g,lat,lon){
+ if(!g||!g.data.length||lat<g.south||lat>g.north||lon<g.west||lon>g.east)return null;
+ const rr=(lat-g.south)/(g.north-g.south)*(g.rows-1),cc=(lon-g.west)/(g.east-g.west)*(g.cols-1);
+ const r=Math.min(g.rows-2,Math.floor(rr)),c=Math.min(g.cols-2,Math.floor(cc)),fr=rr-r,fc=cc-c;
+ const ii=[r*g.cols+c,r*g.cols+c+1,(r+1)*g.cols+c,(r+1)*g.cols+c+1];
+ const vs=ii.map(i=>readGridVal(g,i,'precipitation'));
+ if(vs.some(v=>v===null))return null;
+ return (vs[0]*(1-fc)+vs[1]*fc)*(1-fr)+(vs[2]*(1-fc)+vs[3]*fc)*fr;
+}
+function sample(lat,lon){
+ let v=level()==='詳細'?sampleGrid(detail,lat,lon):null;
+ if(v===null)v=sampleGrid(national,lat,lon);
+ if($('demoToggle').checked){
+  // 強調：描画テスト用の架空の雨域。予報データを置き換えない。
+  const dx=(lon-132.6)/1.8,dy=(lat-33.1)/1.1;
+  const artificial=12*Math.exp(-1.6*(dx*dx+dy*dy));
+  if(v!==null)v=Math.max(v,artificial);
+ }
+ return v;
+}
+const RainCanvas=L.GridLayer.extend({createTile(coords,done){
+ const canvas=document.createElement('canvas');canvas.width=256;canvas.height=256;
+ const ctx=canvas.getContext('2d'),z=coords.z,nw=coords.scaleBy({x:256,y:256}),step=7;
+ for(let y=0;y<256;y+=step)for(let x=0;x<256;x+=step){
+  const p=map.unproject(L.point(nw.x+x+step/2,nw.y+y+step/2),z),v=sample(p.lat,p.lng),rgb=v===null?null:rainColor(v);
+  if(!rgb)continue;
+  ctx.fillStyle=`rgba(${rgb.join(',')},${Math.min(.78,.35+v*.035)})`;
+  ctx.fillRect(x,y,step,step);
+ }
+ if(done)queueMicrotask(()=>done(null,canvas));return canvas;
+}});
+function render(){
+ if(!national?.data?.length||!times.length)return;
+ if(rainLayer){map.removeLayer(rainLayer);rainLayer=null}
+ windLayer.clearLayers();
+ const active=(level()==='詳細'&&detail?.data?.length)?detail:national;
+ if($('rainToggle').checked){rainLayer=new RainCanvas({pane:'rainPane',tileSize:256,opacity:0.95,updateWhenIdle:true,keepBuffer:1});rainLayer.addTo(map)}
+ let count=0,wet=0,max=0,missing=0,windCount=0;
+ for(const [i,p] of active.points.entries()){
+  const v=readGridVal(active,i,'precipitation');if(v===null){missing++}else{count++;if(v>=.1)wet++;max=Math.max(max,v)}
+  if(!$('windToggle').checked)continue;
+  // 全国では最大81本、詳細でも最大81本。大きくしすぎない。
+  const speed=readGridVal(active,i,'wind_speed_10m'),dir=readGridVal(active,i,'wind_direction_10m');
+  if(speed===null||dir===null)continue;
+  const col=speed>=10?'#db3c3c':speed>=5?'#e78d18':'#107eab';
+  const icon=L.divIcon({className:'',html:`<div class="windicon" style="color:${col};transform:rotate(${(dir+180)%360}deg)">↑</div>`,iconSize:[28,28],iconAnchor:[14,14]});
+  L.marker([p.lat,p.lon],{icon,keyboard:false}).bindPopup(`Open-Meteo 地上10m<br>風速：${speed} m/s<br>風向：${dir}°（吹いてくる方角）`).addTo(windLayer);windCount++;
+ }
+ $('timeLabel').textContent='有効時刻：'+times[selected].replace('T',' ')+' JST';
+ $('values').textContent=`${active.kind}格子：風 ${windCount}地点｜降水 ${count}/${active.points.length}地点取得｜最大 ${max.toFixed(2)} mm（直前1時間）｜0.1 mm以上 ${wet}地点`;
+ $('coverage').textContent=$('demoToggle').checked?'【架空の雨域を表示中】実際の予報ではありません。':missing>0?'予報値に欠損があります。欠損地点を0 mmと扱っていません。':max<.1?'この格子では0.1 mm以上の降水予報なし。色がないのは正常です。':'予報値を格子間で補間して表示中。細かな雨域は再現しません。';
+ updateGridStatus();
+}
+function updateGridStatus(){
+ const d=detail?.data?.length?`${detail.points.length}地点を取得済み`:'未取得';
+ const dy=detail?((detail.north-detail.south)*111.2/(detail.rows-1)).toFixed(1):'―';
+ const dx=detail?((detail.east-detail.west)*111.2*Math.cos(map.getCenter().lat*Math.PI/180)/(detail.cols-1)).toFixed(1):'―';
+ $('gridStatus').textContent=`表示モード：${level()}（ズーム${map.getZoom()}）｜全国 ${national?.data?.length||0}地点｜詳細 ${d}｜詳細格子間隔 南北約${dy}km・東西約${dx}km｜APIリクエスト ${callGroups}/${CONFIG.maxFetchGroupsPerSession}回（地点数は別途計上）`;
+}
+function selectTime(i){selected=i;$('hour').value=String(i);$('scrub').value=String(i);render()}
+function alignData(results){
+ if(!times.length){const original=results[0]?.hourly?.time;if(!Array.isArray(original))throw Error('時間情報がありません');const now=Date.now();times=original.filter(t=>{const ms=toMs(t);return Number.isFinite(ms)&&ms>=now-3600000&&ms<=now+48*3600000});if(times.length<40)throw Error('48時間分の時刻が不足');}
+ return results.map(item=>{
+  const h=item?.hourly;if(!h?.time)throw Error('時間別データがありません');
+  const lookup=new Map(h.time.map((t,i)=>[t,i]));
+  if(times.some(t=>!lookup.has(t)))throw Error('地域間で予報時刻が合いません');
+  return {hourly:{precipitation:times.map(t=>h.precipitation?.[lookup.get(t)]),wind_speed_10m:times.map(t=>h.wind_speed_10m?.[lookup.get(t)]),wind_direction_10m:times.map(t=>h.wind_direction_10m?.[lookup.get(t)])}};
+ });
+}
+async function fetchGrid(g,token,signal){
+ const key=gridKey(g),existing=cache.get(key);
+ if(existing&&Date.now()-existing.fetchedAt<CONFIG.cacheMinutes*60000){return {...existing,kind:g.kind};}
+ const results=[];
+ for(let k=0;k<g.points.length;k+=CONFIG.chunkSize){
+  if(signal?.aborted)throw Error('中断');
+  if(callGroups>=CONFIG.maxFetchGroupsPerSession)throw Error('API取得回数の上限に達しました。ページの再読み込み前にしばらく待ってください。');
+  const pts=g.points.slice(k,k+CONFIG.chunkSize);
+  const qs=new URLSearchParams({latitude:pts.map(p=>p.lat.toFixed(4)).join(','),longitude:pts.map(p=>p.lon.toFixed(4)).join(','),hourly:'wind_speed_10m,wind_direction_10m,precipitation',wind_speed_unit:'ms',timezone:'Asia/Tokyo',forecast_days:'4'});
+  callGroups++;
+  const res=await fetch('https://api.open-meteo.com/v1/forecast?'+qs,{signal});
+  if(!res.ok)throw Error('Open-Meteo HTTP '+res.status);
+  const raw=await res.json();results.push(...(Array.isArray(raw)?raw:[raw]));
+ }
+ if(results.length!==g.points.length)throw Error('地点数が一致しません');
+ const completed={...g,data:alignData(results),fetchedAt:Date.now()};
+ cache.set(key,completed);
+ return completed;
+}
+let currentDetailController=null;
+async function loadDetail(force=false){
+ if(!national?.data?.length||map.getZoom()<CONFIG.detailZoom)return;
+ const b=map.getBounds();
+ if(!force&&detail?.data?.length&&boundsCover(detail,b))return;
+ const candidate=stableDetailGrid();
+ const token=++detailSeq;
+ if(currentDetailController)currentDetailController.abort();
+ const controller=new AbortController();currentDetailController=controller;
+ status('表示範囲の詳細格子を取得中...');
+ try{
+  const got=await fetchGrid(candidate,token,controller.signal);
+  if(token!==detailSeq||map.getZoom()<CONFIG.detailZoom)return;
+  detail=got;status('取得成功｜詳細格子 '+detail.points.length+'地点');render();
+ }catch(e){if(token!==detailSeq||controller.signal.aborted)return;status('詳細取得に失敗：'+e.message+'（全国格子で表示）',true);render();}
+}
+function scheduleDetail(){
+ clearTimeout(detailTimer);if(map.getZoom()<CONFIG.detailZoom){
+  detailSeq++;if(currentDetailController)currentDetailController.abort();status('全国の予報を表示中');render();return;
+ }
+ // 一旦既存の全国格子を見せ、移動が止まったら取得する
+ render();detailTimer=setTimeout(()=>loadDetail(),CONFIG.debounceMs);
+}
+async function loadAll(){
+ const token=++loadingSeq;detailSeq++;if(currentDetailController)currentDetailController.abort();clearTimeout(detailTimer);
+ $('reload').disabled=true;$('hour').disabled=true;$('scrub').disabled=true;status('全国の粗い格子を取得中...');
+ try{
+  const n=CONFIG.national;const newNational=makeGrid(n.south,n.north,n.west,n.east,n.rows,n.cols,'全国');
+  // 時刻表を取り直す際に、全格子を統一して更新
+  times=[];
+  national=await fetchGrid(newNational,token);
+  if(token!==loadingSeq)return;
+  // キャッシュから戻した場合は、時刻軸を最新時刻で再生成するため再取得が必要
+  if(!times.length){
+   const t=cache.get(gridKey(newNational));
+   if(t?.timeAxis)times=[...t.timeAxis];
+  }
+  if(!times.length)throw Error('時刻軸を構築できませんでした');
+  cache.get(gridKey(newNational)).timeAxis=[...times];
+  detail=null;
+  const sel=$('hour');sel.innerHTML='';times.forEach((t,i)=>{const o=document.createElement('option');o.value=String(i);o.textContent=t.replace('T',' ')+' JST';sel.appendChild(o)});
+  $('scrub').max=String(times.length-1);sel.disabled=false;$('scrub').disabled=false;
+  const idx=Math.max(0,times.findIndex(t=>toMs(t)>=Date.now()));selectTime(idx);
+  status('取得成功｜全国 '+national.points.length+'地点');
+  scheduleDetail();
+ }catch(e){if(token!==loadingSeq)return;status('取得失敗：'+e.message,true);$('coverage').textContent='未取得は雨なしとは扱いません。';}
+ finally{if(token===loadingSeq)$('reload').disabled=false;}
+}
+$('hour').addEventListener('change',()=>selectTime(Number($('hour').value)));
+$('scrub').addEventListener('input',()=>selectTime(Number($('scrub').value)));
+for(const id of ['windToggle','rainToggle','demoToggle'])$(id).addEventListener('change',render);
+$('reload').addEventListener('click',()=>{cache.clear();loadAll()});
+$('resetMap').addEventListener('click',()=>map.setView([36.5,137],5));
+map.on('moveend zoomend',scheduleDetail);
+loadAll();
+</script>
+</body>
+</html>

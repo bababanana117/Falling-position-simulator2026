@@ -1,0 +1,19 @@
+usage: api_probe.py [-h] [--base BASE] [--config CONFIG]
+                    [--source-id SOURCE_ID] [--request-id REQUEST_ID]
+                    [--latitude LATITUDE] [--longitude LONGITUDE] --out OUT
+                    [--execute] [--ack-isolated-server] [--lookup]
+                    [--instance-id INSTANCE_ID]
+
+options:
+  -h, --help            show this help message and exit
+  --base BASE
+  --config CONFIG
+  --source-id SOURCE_ID
+  --request-id REQUEST_ID
+  --latitude LATITUDE
+  --longitude LONGITUDE
+  --out OUT
+  --execute
+  --ack-isolated-server
+  --lookup
+  --instance-id INSTANCE_ID

@@ -1,0 +1,18 @@
+{
+  "imports": [
+    "__future__",
+    "copy",
+    "hashlib",
+    "json",
+    "math",
+    "pathlib",
+    "geographiclib.geodesic",
+    "geographiclib",
+    "argparse",
+    "json",
+    "sys",
+    "pathlib",
+    "n06_distance"
+  ],
+  "engine_or_network_imports": false
+}

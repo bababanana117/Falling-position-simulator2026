@@ -1,0 +1,10 @@
+usage: cli.py [-h] --store STORE
+              {create,run,resume,pause,status,detail,verify,target,retry,result,list}
+              ...
+
+positional arguments:
+  {create,run,resume,pause,status,detail,verify,target,retry,result,list}
+
+options:
+  -h, --help            show this help message and exit
+  --store STORE

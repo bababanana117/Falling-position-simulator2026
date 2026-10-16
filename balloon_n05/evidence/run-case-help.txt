@@ -1,0 +1,12 @@
+usage: run_case.py [-h] --engine-root ENGINE_ROOT --config CONFIG --weather
+                   WEATHER [--latitude LATITUDE] [--longitude LONGITUDE] --out
+                   OUT
+
+options:
+  -h, --help            show this help message and exit
+  --engine-root ENGINE_ROOT
+  --config CONFIG
+  --weather WEATHER
+  --latitude LATITUDE
+  --longitude LONGITUDE
+  --out OUT

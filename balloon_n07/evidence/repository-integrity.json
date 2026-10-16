@@ -1,0 +1,20 @@
+{
+  "branch": "dev/balloon-analysis-app",
+  "commit": "fbb1cc76c112d8c495d2044604b330f1c0f5c8d6",
+  "status": "",
+  "diff": "",
+  "N05_N06_original_artifacts": {
+    "N05_Balloon_Flight_Verification.zip": {
+      "files_checked": 16,
+      "unchanged": true
+    },
+    "N06_Target_Landing_Comparison.zip": {
+      "files_checked": 11,
+      "unchanged": true
+    }
+  },
+  "n06_dependency_unchanged": true,
+  "work_real_gfs_runs": 0,
+  "work_balloon_api_posts": 0,
+  "windows_50_case_acceptance": "not_run"
+}

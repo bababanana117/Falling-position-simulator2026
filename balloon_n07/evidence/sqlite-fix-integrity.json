@@ -1,0 +1,23 @@
+{
+  "changed_from_original_n07_zip": [
+    "balloon_n07/N07_Verification_Report.md",
+    "balloon_n07/README.md",
+    "balloon_n07/State_and_Storage.md",
+    "balloon_n07/core.py",
+    "balloon_n07/evidence/unit-tests.txt",
+    "balloon_n07/tests/test_http_and_crash.py"
+  ],
+  "added": [
+    "balloon_n07/SQLite_Fix_Report.md",
+    "balloon_n07/tests/test_sqlite_lifecycle.py"
+  ],
+  "production_git_status": "",
+  "production_git_diff": "",
+  "sqlite_schema_changed": false,
+  "windows_fixed_tests": "not_run",
+  "work_tests": {
+    "total": 56,
+    "passed": 56,
+    "skipped": 0
+  }
+}

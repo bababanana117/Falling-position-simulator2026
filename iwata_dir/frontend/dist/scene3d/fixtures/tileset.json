@@ -1,0 +1,48 @@
+{
+  "asset": {
+    "version": "1.1",
+    "copyright": "Original artificial geometry for BJP renderer testing; not Google imagery"
+  },
+  "geometricError": 600,
+  "root": {
+    "boundingVolume": {
+      "box": [
+        0,
+        0,
+        32,
+        301,
+        0,
+        0,
+        0,
+        301,
+        0,
+        0,
+        0,
+        35
+      ]
+    },
+    "geometricError": 0,
+    "refine": "REPLACE",
+    "transform": [
+      -0.6815387023884213,
+      -0.7317820694350927,
+      0,
+      0,
+      0.4214887968851483,
+      -0.392549831020204,
+      0.8174667114117364,
+      0,
+      -0.5982074817711803,
+      0.557135201741285,
+      0.5759758464846252,
+      0,
+      -3819693.1102704867,
+      3557437.1040620916,
+      3653118.795541658,
+      1
+    ],
+    "content": {
+      "uri": "surface.glb"
+    }
+  }
+}

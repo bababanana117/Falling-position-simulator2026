@@ -1,0 +1,9 @@
+{
+  "schema": "n07.candidates/1",
+  "altitude_reference": "geometric_ASL_m",
+  "candidates": [
+    {"candidate_id": "A", "latitude_deg": 43.0, "longitude_deg": 141.5, "altitude_m": 100.0},
+    {"candidate_id": "B", "latitude_deg": 43.0, "longitude_deg": 141.6, "altitude_m": 100.0},
+    {"candidate_id": "C-height-unknown", "latitude_deg": 43.0, "longitude_deg": 141.55, "altitude_m": null}
+  ]
+}

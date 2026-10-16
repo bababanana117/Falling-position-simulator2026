@@ -1,0 +1,13 @@
+﻿{
+    "candidates":  [
+                       {
+                           "candidate_id":  "hokkaido-original",
+                           "path":  "C:\\Users\\ytrgr\\BalloonN05-results\\hokkaido-result.json"
+                       },
+                       {
+                           "candidate_id":  "hokkaido-changed",
+                           "path":  "C:\\Users\\ytrgr\\BalloonN05-results\\hokkaido-changed.json"
+                       }
+                   ],
+    "schema":  "n06.inputs/1"
+}
